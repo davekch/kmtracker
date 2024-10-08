@@ -63,8 +63,8 @@ def amend(
     pretty.print_rows([new])
 
 
-def get_last(config: ConfigParser) -> sqlite3.Row:
+def get_latest(config: ConfigParser, n: int) -> list[sqlite3.Row]:
     with get_db_connection(get_db_path(config)) as connection:
-        last = db.get_last_entry(connection)
-    pretty.print_rows([last])
-    return last
+        latest = db.get_latest_entries(connection, n)
+    pretty.print_rows(latest)
+    return latest

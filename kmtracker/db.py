@@ -100,6 +100,9 @@ def amend(
 
 
 def get_last_entry(connection: sqlite3.Connection) -> sqlite3.Row:
+    """
+    return the last entry (highest ID)
+    """
     connection.row_factory = sqlite3.Row
     with closing(connection.cursor()) as cursor:
         return cursor.execute(
@@ -107,3 +110,18 @@ def get_last_entry(connection: sqlite3.Connection) -> sqlite3.Row:
             f"FROM {RIDE_TABLE} "
             f"WHERE id=(SELECT max(id) from {RIDE_TABLE})"
         ).fetchall()[0]
+
+
+def get_latest_entries(connection: sqlite3.Connection, n: int) -> list[sqlite3.Row]:
+    """
+    return the latest n entries (by timestamp)
+    """
+    connection.row_factory = sqlite3.Row
+    with closing(connection.cursor()) as cursor:
+        latest = cursor.execute(
+            "SELECT id, timestamp, distance_km, duration, segments, comment "
+            f"FROM {RIDE_TABLE} "
+            "ORDER BY timestamp DESC LIMIT ?",
+            (n,)
+        ).fetchall()
+        return list(reversed(latest))
