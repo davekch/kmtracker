@@ -39,3 +39,16 @@ def add(
 ):
     with get_db_connection(get_db_path(config)) as connection:
         db.add_entry(connection, distance, timestamp, duration, comment, segments)
+
+
+def amend(
+    config: ConfigParser,
+    distance: float = None,
+    timestamp: datetime = None,
+    duration: timedelta = None,
+    comment: str = None,
+    segments: int = None,
+):
+    with get_db_connection(get_db_path(config)) as connection:
+        db.amend(connection, distance, timestamp, duration, comment, segments)
+    

@@ -10,6 +10,7 @@ from kmtracker import (
     get_config,
     get_db_path,
     add,
+    amend,
 )
 
 
@@ -24,17 +25,25 @@ def get_args() -> argparse.Namespace:
     add.add_argument("-c", "--comment")
     add.add_argument("-s", "--segments", help="split this ride into n segments")
 
+    amend = subparsers.add_parser("amend", help="change the latest entry")
+    amend.add_argument("-k", "--distance", help="distance in km")
+    amend.add_argument("-t", "--timestamp", help="datetime of the ride")
+    amend.add_argument("-d", "--duration", help="duration of the ride")
+    amend.add_argument("-c", "--comment")
+    amend.add_argument("-s", "--segments", help="split this ride into n segments")
+
     args = parser.parse_args()
     return args
 
 
 def parse_add_args(args: argparse.Namespace) -> dict:
     parsed = {}
-    try:
-        parsed["distance"] = float(args.distance)
-    except ValueError:
-        print(f"invalid float value for argument distance: {args.distance!r}")
-        sys.exit(1)
+    if args.distance:
+        try:
+            parsed["distance"] = float(args.distance)
+        except ValueError:
+            print(f"invalid float value for argument distance: {args.distance!r}")
+            sys.exit(1)
     if args.timestamp:
         try:
             parsed["timestamp"] = dateutil.parser.parse(args.timestamp)
@@ -50,7 +59,7 @@ def parse_add_args(args: argparse.Namespace) -> dict:
         except ValueError:
             print(f"invalid duration (must be hh:mm): {args.duration!r}")
             sys.exit(1)
-    if args.comment:
+    if args.comment is not None:
         parsed["comment"] = args.comment
     if args.segments:
         try:
@@ -73,6 +82,10 @@ def main():
     if args.command == "add":
         parsed_args = parse_add_args(args)
         add(config, **parsed_args)
+    elif args.command == "amend":
+        print(args)
+        parsed_args = parse_add_args(args)
+        amend(config, **parsed_args)
 
 
 if __name__ == "__main__":

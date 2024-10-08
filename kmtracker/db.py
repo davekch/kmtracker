@@ -27,6 +27,15 @@ def create_db(path: Path):
             """)
 
 
+def _format_duration(duration: timedelta) -> str:
+    if duration is not None:
+        hours, remainder = divmod(duration.seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return f"{hours}:{minutes}:{seconds}"
+    else:
+        return ""
+
+
 def add_entry(
     connection: sqlite3.Connection,
     distance: float,
@@ -35,12 +44,7 @@ def add_entry(
     comment: str,
     segments: int,
 ):
-    if duration is not None:
-        hours, remainder = divmod(duration.seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        duration_formatted = f"{hours}:{minutes}:{seconds}"
-    else:
-        duration_formatted = ""
+    duration_formatted = _format_duration(duration)
 
     with closing(connection.cursor()) as cursor:
         cursor.execute(
@@ -53,4 +57,43 @@ def add_entry(
                 segments
             )
         )
+    connection.commit()
+
+
+def amend(
+    connection: sqlite3.Connection,
+    distance: float,
+    timestamp: datetime,
+    duration: timedelta,
+    comment: str,
+    segments: int,
+):
+    """
+    change the latest entry with the given values
+    """
+    setters = []
+    values = []
+    # build setters and values such that they can be safely inserted into cursor.execute
+    if distance:
+        setters.append("distance_km = ?")
+        values.append(distance)
+    if timestamp:
+        setters.append("timestamp = ?")
+        values.append(timestamp.isoformat())
+    if duration:
+        setters.append("duration = ?")
+        values.append(_format_duration(duration))
+    if comment is not None:
+        # might be empty string
+        setters.append("comment = ?")
+        values.append(comment)
+    if segments:
+        setters.append("segments = ?")
+        values.append(segments)
+    command = f"""
+        UPDATE {RIDE_TABLE} SET {', '.join(setters)}
+        WHERE id=(SELECT max(id) FROM {RIDE_TABLE})
+    """
+    with closing(connection.cursor()) as cursor:
+        cursor.execute(command, tuple(values))
     connection.commit()
