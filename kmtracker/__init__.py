@@ -1,9 +1,12 @@
 from configparser import ConfigParser
 from pathlib import Path
 from datetime import datetime, timedelta
+import sqlite3
+import rich
 
 from kmtracker.db import get_db_connection
 from kmtracker import db
+from kmtracker import pretty
 
 
 CONFIG_PATH = Path("~/.config/kmtracker.cfg").expanduser()
@@ -39,6 +42,10 @@ def add(
 ):
     with get_db_connection(get_db_path(config)) as connection:
         db.add_entry(connection, distance, timestamp, duration, comment, segments)
+        new = db.get_last_entry(connection)
+    pretty.console.print("Success!✨ ", style="green bold", end="")
+    pretty.console.print("Added a new ride:")
+    pretty.print_rows([new])
 
 
 def amend(
@@ -51,4 +58,13 @@ def amend(
 ):
     with get_db_connection(get_db_path(config)) as connection:
         db.amend(connection, distance, timestamp, duration, comment, segments)
-    
+        new = db.get_last_entry(connection)
+    pretty.console.print("Changed the latest entry:")
+    pretty.print_rows([new])
+
+
+def get_last(config: ConfigParser) -> sqlite3.Row:
+    with get_db_connection(get_db_path(config)) as connection:
+        last = db.get_last_entry(connection)
+    pretty.print_rows([last])
+    return last

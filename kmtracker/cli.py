@@ -11,6 +11,7 @@ from kmtracker import (
     get_db_path,
     add,
     amend,
+    get_last,
 )
 
 
@@ -31,6 +32,8 @@ def get_args() -> argparse.Namespace:
     amend.add_argument("-d", "--duration", help="duration of the ride")
     amend.add_argument("-c", "--comment")
     amend.add_argument("-s", "--segments", help="split this ride into n segments")
+
+    ls = subparsers.add_parser("ls", help="show latest ride")
 
     args = parser.parse_args()
     return args
@@ -83,9 +86,10 @@ def main():
         parsed_args = parse_add_args(args)
         add(config, **parsed_args)
     elif args.command == "amend":
-        print(args)
         parsed_args = parse_add_args(args)
         amend(config, **parsed_args)
+    elif args.command == "ls":
+        get_last(config)
 
 
 if __name__ == "__main__":

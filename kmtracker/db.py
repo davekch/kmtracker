@@ -97,3 +97,13 @@ def amend(
     with closing(connection.cursor()) as cursor:
         cursor.execute(command, tuple(values))
     connection.commit()
+
+
+def get_last_entry(connection: sqlite3.Connection) -> sqlite3.Row:
+    connection.row_factory = sqlite3.Row
+    with closing(connection.cursor()) as cursor:
+        return cursor.execute(
+            "SELECT id, timestamp, distance_km, duration, segments, comment "
+            f"FROM {RIDE_TABLE} "
+            f"WHERE id=(SELECT max(id) from {RIDE_TABLE})"
+        ).fetchall()[0]
