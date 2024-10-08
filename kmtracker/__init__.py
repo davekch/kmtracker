@@ -37,7 +37,7 @@ def add(
     distance: float,
     timestamp: datetime,
     duration: timedelta = None,
-    comment: str = None,
+    comment: str = "",
     segments: int = 1,
 ):
     with get_db_connection(get_db_path(config)) as connection:
@@ -53,7 +53,7 @@ def amend(
     distance: float = None,
     timestamp: datetime = None,
     duration: timedelta = None,
-    comment: str = None,
+    comment: str = "",
     segments: int = None,
 ):
     with get_db_connection(get_db_path(config)) as connection:
