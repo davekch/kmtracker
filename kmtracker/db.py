@@ -31,9 +31,9 @@ def add_entry(
     connection: sqlite3.Connection,
     distance: float,
     timestamp: datetime,
-    duration: timedelta = None,
-    comment: str = None,
-    segments: int = 1,
+    duration: timedelta,
+    comment: str,
+    segments: int,
 ):
     if duration is not None:
         hours, remainder = divmod(duration.seconds, 3600)

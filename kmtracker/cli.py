@@ -6,7 +6,11 @@ import dateutil.parser
 from pathlib import Path
 
 from kmtracker import db
-from kmtracker import get_config
+from kmtracker import (
+    get_config,
+    get_db_path,
+    add,
+)
 
 
 def get_args() -> argparse.Namespace:
@@ -60,7 +64,7 @@ def parse_add_args(args: argparse.Namespace) -> dict:
 def main():
     args = get_args()
     config = get_config()
-    db_path = Path(config["db"]["path"]).expanduser().resolve()
+    db_path = get_db_path(config)
 
     if not db_path.exists():
         db.create_db(db_path)
@@ -68,9 +72,7 @@ def main():
 
     if args.command == "add":
         parsed_args = parse_add_args(args)
-        with db.get_db_connection(db_path) as connection:
-            db.add_entry(connection, **parsed_args)
-            print("saved new entry!")
+        add(config, **parsed_args)
 
 
 if __name__ == "__main__":
