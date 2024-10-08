@@ -13,7 +13,7 @@ def get_db_connection(path: Path):
 
 
 def create_db(path: Path):
-    with closing(sqlite3.connect(path)) as connection:
+    with get_db_connection(path) as connection:
         with closing(connection.cursor()) as cursor:
             cursor.execute(f"""
                 CREATE TABLE {RIDE_TABLE} (
