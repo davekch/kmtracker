@@ -5,7 +5,8 @@ from datetime import datetime, timedelta
 import dateutil.parser
 from pathlib import Path
 
-import db
+from kmtracker import db
+from kmtracker import get_config
 
 
 def get_args() -> argparse.Namespace:
@@ -57,8 +58,9 @@ def parse_add_args(args: argparse.Namespace) -> dict:
 
 
 def main():
-    db_path = (Path(__file__).parent.parent / "db.sqlite3").absolute().resolve()
     args = get_args()
+    config = get_config()
+    db_path = Path(config["db"]["path"]).expanduser().resolve()
 
     if not db_path.exists():
         db.create_db(db_path)
@@ -68,6 +70,7 @@ def main():
         parsed_args = parse_add_args(args)
         with db.get_db_connection(db_path) as connection:
             db.add_entry(connection, **parsed_args)
+            print("saved new entry!")
 
 
 if __name__ == "__main__":
