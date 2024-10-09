@@ -53,7 +53,7 @@ def amend(
     distance: float = None,
     timestamp: datetime = None,
     duration: timedelta = None,
-    comment: str = "",
+    comment: str = None,
     segments: int = None,
 ):
     with get_db_connection(get_db_path(config)) as connection:
