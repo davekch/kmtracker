@@ -29,7 +29,7 @@ def get_args() -> argparse.Namespace:
     amend = subparsers.add_parser("amend", help="change the latest entry")
     amend.add_argument("-k", "--distance", help="distance in km")
     amend.add_argument("-t", "--timestamp", help="datetime of the ride")
-    amend.add_argument("-d", "--duration", help="duration of the ride")
+    amend.add_argument("-d", "--duration", help="duration of the ride (hh:mm or hh:mm:ss)")
     amend.add_argument("-c", "--comment")
     amend.add_argument("-s", "--segments", help="split this ride into n segments")
 
@@ -58,10 +58,16 @@ def parse_add_args(args: argparse.Namespace) -> dict:
         parsed["timestamp"] = datetime.now()
     if args.duration:
         try:
-            hours, minutes = args.duration.split(":")
-            parsed["duration"] = timedelta(hours=int(hours), minutes=int(minutes))
+            # raises if the conversion to int fails or no case is matched
+            match args.duration.split(":"):
+                case [hours, minutes]:
+                    parsed["duration"] = timedelta(hours=int(hours), minutes=int(minutes))
+                case [hours, minutes, seconds]:
+                    parsed["duration"] = timedelta(hours=int(hours), minutes=int(minutes), seconds=int(seconds))
+                case _:
+                    raise ValueError()
         except ValueError:
-            print(f"invalid duration (must be hh:mm): {args.duration!r}")
+            print(f"invalid duration (must be hh:mm or hh:mm:ss): {args.duration!r}")
             sys.exit(1)
     if args.comment is not None:
         parsed["comment"] = args.comment
