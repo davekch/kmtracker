@@ -19,7 +19,7 @@ from kmtracker import (
 
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    subparsers = parser.add_subparsers(dest="command")
+    subparsers = parser.add_subparsers(dest="command", required=True)
 
     add = subparsers.add_parser("add", help="add a new ride")
     add.add_argument("distance", help="distance in km")
