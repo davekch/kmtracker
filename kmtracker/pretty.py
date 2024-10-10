@@ -34,7 +34,7 @@ def to_dict(row: sqlite3.Row) -> dict:
                 dur = timedelta(seconds=row[k])
                 hours, remainder = divmod(dur.seconds, 3600)
                 minutes, seconds = divmod(remainder, 60)
-                d[pretty_field_names[k]] = f"{dur.days*24 + hours}:{minutes}:{seconds}"
+                d[pretty_field_names[k]] = f"{dur.days*24 + hours:02}:{minutes:02}:{seconds:02}"
         else:
             d[pretty_field_names[k]] = row[k]
     return d
