@@ -48,5 +48,5 @@ def print_rows(rows: list):
     for col in rows[0].keys():
         table.add_column(pretty_field_names[col])
     for row in map(to_dict, rows):
-        table.add_row(*list(map(str, row.values())))
+        table.add_row(*[str(v or "") for v in row.values()])
     console.print(table)
