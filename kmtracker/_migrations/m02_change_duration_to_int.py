@@ -11,9 +11,12 @@ def run(cursor: Cursor):
     # convert to seconds
     durs_int = []
     for id, dur in durs:
-        h, m, s = dur.split(":")
-        d = timedelta(hours=int(h), minutes=int(m), seconds=int(s))
-        durs_int.append({"id": id, "value": d.days * 60 * 60 * 24 + d.seconds})
+        if not dur:
+            durs_int.append({"id": id, "value": None})
+        else:
+            h, m, s = dur.split(":")
+            d = timedelta(hours=int(h), minutes=int(m), seconds=int(s))
+            durs_int.append({"id": id, "value": d.days * 60 * 60 * 24 + d.seconds})
     # create new column
     cursor.execute("ALTER TABLE rides ADD COLUMN duration_s INTEGER CHECK(duration_s > 0)")
     # set values
