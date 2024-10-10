@@ -56,6 +56,7 @@ def migrate(path: Path):
             for module in migration_modules:
                 if module in migrations_performed:
                     continue
+                print(f"performing migration '{module}'...")
                 migration = importlib.import_module(f"kmtracker._migrations.{module}")
                 migration.run(cursor)
                 # mark this migration as done

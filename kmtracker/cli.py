@@ -88,6 +88,8 @@ def main():
     if not db_path.exists():
         db.migrate(db_path)
         print(f"created a new DB at {db_path}")
+    else:
+        db.migrate(db_path)
 
     if args.command == "add":
         parsed_args = parse_add_args(args)
