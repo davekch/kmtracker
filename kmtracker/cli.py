@@ -44,7 +44,7 @@ def get_args() -> argparse.Namespace:
     return args
 
 
-def parse_add_args(args: argparse.Namespace) -> dict:
+def parse_add_args(args: argparse.Namespace, auto_timestamp=True) -> dict:
     parsed = {}
     if args.distance:
         try:
@@ -58,7 +58,7 @@ def parse_add_args(args: argparse.Namespace) -> dict:
         except dateutil.parser.ParserError:
             print(f"invalid datetime for argument timestamp: {args.timestamp!r}")
             sys.exit(1)
-    else:
+    elif auto_timestamp:
         parsed["timestamp"] = datetime.now()
     if args.duration:
         try:
@@ -102,7 +102,7 @@ def main():
         pretty.console.print("Added a new ride:")
         pretty.print_rows([new])
     elif args.command == "amend":
-        parsed_args = parse_add_args(args)
+        parsed_args = parse_add_args(args, auto_timestamp=False)
         new = amend(config, **parsed_args)
         pretty.console.print("Changed the latest entry:")
         pretty.print_rows([new])
