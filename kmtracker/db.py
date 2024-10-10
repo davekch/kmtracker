@@ -3,28 +3,52 @@ from pathlib import Path
 from contextlib import closing
 from datetime import datetime
 from datetime import timedelta
+import glob
+import importlib
 
 
 RIDE_TABLE = "rides"
+MIGRATIONS_TABLE = "_migrations"
 
 
 def get_db_connection(path: Path):
     return closing(sqlite3.connect(path))
 
 
-def create_db(path: Path):
+def migrate(path: Path):
+    """
+    migrate changes to the database schema to the database
+    or create a new one
+    """
+    # look up which migrations are available
+    migration_modules = sorted(
+        Path(m).stem for m in
+        glob.glob(str(Path(__file__).parent / "_migrations" / "m*.py"))
+    )
     with get_db_connection(path) as connection:
         with closing(connection.cursor()) as cursor:
-            cursor.execute(f"""
-                CREATE TABLE {RIDE_TABLE} (
-                    id INTEGER PRIMARY KEY,
-                    distance_km REAL NOT NULL,
-                    timestamp TEXT NOT NULL,
-                    duration TEXT,
-                    comment TEXT,
-                    segments INTEGER DEFAULT 1 CHECK(segments > 0)
+            # look up which migrations have already performed
+            try:
+                migrations_performed = [
+                    result[0] for result in
+                    cursor.execute(f"SELECT name FROM {MIGRATIONS_TABLE}").fetchall()
+                ]
+            except sqlite3.OperationalError:
+                migrations_performed = []
+
+            # perform missing migrations
+            for module in migration_modules:
+                if module in migrations_performed:
+                    continue
+                migration = importlib.import_module(f"kmtracker._migrations.{module}")
+                migration.run(cursor)
+                # mark this migration as done
+                cursor.execute(
+                    f"INSERT INTO {MIGRATIONS_TABLE} (name) VALUES (?)",
+                    (module,)
                 )
-            """)
+
+        connection.commit()
 
 
 def _format_duration(duration: timedelta) -> str:

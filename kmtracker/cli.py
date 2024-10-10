@@ -86,7 +86,7 @@ def main():
     db_path = get_db_path(config)
 
     if not db_path.exists():
-        db.create_db(db_path)
+        db.migrate(db_path)
         print(f"created a new DB at {db_path}")
 
     if args.command == "add":
