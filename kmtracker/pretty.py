@@ -50,3 +50,14 @@ def print_rows(rows: list):
     for row in map(to_dict, rows):
         table.add_row(*[str(v or "") for v in row.values()])
     console.print(table)
+
+
+def print_summary(summary: dict):
+    dist_max, dist_max_date = summary["distance_max"]
+    dist_max_day, dist_max_day_date = summary["distance_max_day"]
+    v_max, v_max_date = summary["velocity_max"]
+    console.print(f"total distance           : [bold green]{round(summary['distance_tot'], 2)}km[/bold green] ({summary['n_rides']} rides)")
+    console.print(f"longest ride             : {round(dist_max, 2)}km (on {dist_max_date.split('T')[0]})")
+    console.print(f"maximum distance on a day: {round(dist_max_day, 2)}km (on {dist_max_day_date})")
+    console.print(f"average velocity         : {round(summary['velocity_mean'], 1)}km/h")
+    console.print(f"fastest ride             : {round(v_max, 1)}km/h (on {v_max_date.split('T')[0]})")

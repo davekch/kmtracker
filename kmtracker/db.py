@@ -43,7 +43,7 @@ def migrate(path: Path):
     )
     with get_db_connection(path) as connection:
         with closing(connection.cursor()) as cursor:
-            # look up which migrations have already performed
+            # look up which migrations have already been performed
             try:
                 migrations_performed = [
                     result[0] for result in
@@ -168,3 +168,54 @@ def get_latest_entries(connection: sqlite3.Connection, n: int) -> list[sqlite3.R
             (n,)
         ).fetchall()
         return list(reversed(latest))
+
+
+def get_total_distance(connection: sqlite3.Connection) -> float:
+    with closing(connection.cursor()) as cursor:
+        return cursor.execute(f"SELECT SUM({Rides.columns.distance}) FROM {Rides.name}").fetchone()[0]
+
+
+def get_max_distance_entry(connection: sqlite3.Connection) -> tuple[int, str]:
+    """get the maximum distance of a single ride with timestamp"""
+    with closing(connection.cursor()) as cursor:
+        return cursor.execute(
+            f"SELECT MAX({Rides.columns.distance}) / {Rides.columns.segments} AS {Rides.columns.distance}, {Rides.columns.timestamp} "
+            f"FROM {Rides.name}"
+        ).fetchone()
+
+
+def get_max_distance_by_day(connection: sqlite3.Connection) -> tuple[int, str]:
+    """get the maximum distance covered on a day"""
+    with closing(connection.cursor()) as cursor:
+        return cursor.execute(f"""
+            SELECT MAX(daily_distance), day
+            FROM (
+                SELECT DATE({Rides.columns.timestamp}) as day, SUM({Rides.columns.distance}) as daily_distance
+                FROM {Rides.name}
+                GROUP BY day
+            )
+        """).fetchone()
+
+
+def get_max_velocity_entry(connection: sqlite3.Connection) -> tuple[int, str]:
+    """return the maximum velocity with timestamp"""
+    with closing(connection.cursor()) as cursor:
+        return cursor.execute(
+            f"SELECT MAX({Rides.columns.distance} / {Rides.columns.duration} * 3600) as velocity, {Rides.columns.timestamp} "
+            f"FROM {Rides.name} WHERE {Rides.columns.duration} IS NOT NULL"
+        ).fetchone()
+
+
+def get_average_velocity(connection: sqlite3.Connection) -> float:
+    """return the average velocity of all entries with a duration in km/h"""
+    with closing(connection.cursor()) as cursor:
+        s_km, t_s = cursor.execute(
+            f"SELECT SUM({Rides.columns.distance}), SUM({Rides.columns.duration}) "
+            F"FROM {Rides.name} WHERE {Rides.columns.duration} IS NOT NULL"
+        ).fetchone()
+    return s_km / (t_s / 3600)
+
+
+def get_total_rides(connection: sqlite3.Connection) -> int:
+    with closing(connection.cursor()) as cursor:
+        return cursor.execute(f"SELECT SUM({Rides.columns.segments}) FROM {Rides.name}").fetchone()[0]

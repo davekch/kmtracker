@@ -13,6 +13,7 @@ from kmtracker import (
     add,
     amend,
     get_latest,
+    get_summary,
 )
 
 
@@ -36,6 +37,8 @@ def get_args() -> argparse.Namespace:
 
     ls = subparsers.add_parser("ls", help="show latest ride")
     ls.add_argument("-n", help="number of entries to show", type=int, default=1)
+
+    stats = subparsers.add_parser("stats")
 
     args = parser.parse_args()
     return args
@@ -106,6 +109,9 @@ def main():
     elif args.command == "ls":
         latest = get_latest(config, args.n)
         pretty.print_rows(latest)
+    elif args.command == "stats":
+        summary = get_summary(config)
+        pretty.print_summary(summary)
 
 
 if __name__ == "__main__":
