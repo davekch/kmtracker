@@ -6,6 +6,7 @@ import dateutil.parser
 from pathlib import Path
 
 from kmtracker import db
+from kmtracker import pretty
 from kmtracker import (
     get_config,
     get_db_path,
@@ -93,12 +94,18 @@ def main():
 
     if args.command == "add":
         parsed_args = parse_add_args(args)
-        add(config, **parsed_args)
+        new = add(config, **parsed_args)
+        pretty.console.print("Success!✨ ", style="green bold", end="")
+        pretty.console.print("Added a new ride:")
+        pretty.print_rows([new])
     elif args.command == "amend":
         parsed_args = parse_add_args(args)
-        amend(config, **parsed_args)
+        new = amend(config, **parsed_args)
+        pretty.console.print("Changed the latest entry:")
+        pretty.print_rows([new])
     elif args.command == "ls":
-        get_latest(config, args.n)
+        latest = get_latest(config, args.n)
+        pretty.print_rows(latest)
 
 
 if __name__ == "__main__":
