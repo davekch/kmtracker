@@ -7,8 +7,24 @@ import glob
 import importlib
 
 
-RIDE_TABLE = "rides"
-MIGRATIONS_TABLE = "_migrations"
+# constants of table and column names
+class Rides:
+    name = "rides"
+
+    class columns:
+        distance = "distance_km"
+        timestamp = "timestamp"
+        duration = "duration_s"
+        comment = "comment"
+        segments = "segments"
+
+
+class Migrations:
+    name = "_migrations"
+
+    class columns:
+        name = "name"
+        timestamp = "timestamp"
 
 
 def get_db_connection(path: Path):
@@ -31,7 +47,7 @@ def migrate(path: Path):
             try:
                 migrations_performed = [
                     result[0] for result in
-                    cursor.execute(f"SELECT name FROM {MIGRATIONS_TABLE}").fetchall()
+                    cursor.execute(f"SELECT {Migrations.columns.name} FROM {Migrations.name}").fetchall()
                 ]
             except sqlite3.OperationalError:
                 migrations_performed = []
@@ -44,20 +60,18 @@ def migrate(path: Path):
                 migration.run(cursor)
                 # mark this migration as done
                 cursor.execute(
-                    f"INSERT INTO {MIGRATIONS_TABLE} (name) VALUES (?)",
+                    f"INSERT INTO {Migrations.name} ({Migrations.columns.name}) VALUES (?)",
                     (module,)
                 )
 
         connection.commit()
 
 
-def _format_duration(duration: timedelta) -> str:
+def _to_seconds(duration: timedelta) -> int:
     if duration is not None:
-        hours, remainder = divmod(duration.seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        return f"{hours}:{minutes}:{seconds}"
+        return duration.days * 60 * 60 * 24 + duration.seconds
     else:
-        return ""
+        return None
 
 
 def add_entry(
@@ -68,15 +82,19 @@ def add_entry(
     comment: str,
     segments: int,
 ):
-    duration_formatted = _format_duration(duration)
-
     with closing(connection.cursor()) as cursor:
         cursor.execute(
-            f"""INSERT INTO {RIDE_TABLE} (distance_km, timestamp, duration, comment, segments) VALUES (?, ?, ?, ?, ?)""",
+            f"""INSERT INTO {Rides.name} (
+                {Rides.columns.distance},
+                {Rides.columns.timestamp},
+                {Rides.columns.duration},
+                {Rides.columns.comment},
+                {Rides.columns.segments}
+            ) VALUES (?, ?, ?, ?, ?)""",
             (
                 distance,
                 timestamp.isoformat(),
-                duration_formatted,
+                _to_seconds(duration),
                 comment,
                 segments
             )
@@ -99,24 +117,24 @@ def amend(
     values = []
     # build setters and values such that they can be safely inserted into cursor.execute
     if distance:
-        setters.append("distance_km = ?")
+        setters.append(f"{Rides.columns.distance} = ?")
         values.append(distance)
     if timestamp:
-        setters.append("timestamp = ?")
+        setters.append(f"{Rides.columns.timestamp} = ?")
         values.append(timestamp.isoformat())
     if duration:
-        setters.append("duration = ?")
-        values.append(_format_duration(duration))
+        setters.append(f"{Rides.columns.duration} = ?")
+        values.append(_to_seconds(duration))
     if comment is not None:
         # might be empty string
-        setters.append("comment = ?")
+        setters.append(f"{Rides.columns.comment} = ?")
         values.append(comment)
     if segments:
-        setters.append("segments = ?")
+        setters.append(f"{Rides.columns.segments} = ?")
         values.append(segments)
     command = f"""
-        UPDATE {RIDE_TABLE} SET {', '.join(setters)}
-        WHERE id=(SELECT max(id) FROM {RIDE_TABLE})
+        UPDATE {Rides.name} SET {', '.join(setters)}
+        WHERE id=(SELECT max(id) FROM {Rides.name})
     """
     with closing(connection.cursor()) as cursor:
         cursor.execute(command, tuple(values))
@@ -130,9 +148,9 @@ def get_last_entry(connection: sqlite3.Connection) -> sqlite3.Row:
     connection.row_factory = sqlite3.Row
     with closing(connection.cursor()) as cursor:
         return cursor.execute(
-            "SELECT id, timestamp, distance_km, duration, segments, comment "
-            f"FROM {RIDE_TABLE} "
-            f"WHERE id=(SELECT max(id) from {RIDE_TABLE})"
+            f"SELECT id, {Rides.columns.timestamp}, {Rides.columns.distance}, {Rides.columns.duration}, {Rides.columns.comment}, {Rides.columns.segments} "
+            f"FROM {Rides.name} "
+            f"WHERE id=(SELECT max(id) from {Rides.name})"
         ).fetchall()[0]
 
 
@@ -143,9 +161,9 @@ def get_latest_entries(connection: sqlite3.Connection, n: int) -> list[sqlite3.R
     connection.row_factory = sqlite3.Row
     with closing(connection.cursor()) as cursor:
         latest = cursor.execute(
-            "SELECT id, timestamp, distance_km, duration, segments, comment "
-            f"FROM {RIDE_TABLE} "
-            "ORDER BY timestamp DESC LIMIT ?",
+            f"SELECT id, {Rides.columns.timestamp}, {Rides.columns.distance}, {Rides.columns.duration}, {Rides.columns.comment}, {Rides.columns.segments} "
+            f"FROM {Rides.name} "
+            f"ORDER BY {Rides.columns.timestamp} DESC LIMIT ?",
             (n,)
         ).fetchall()
         return list(reversed(latest))
