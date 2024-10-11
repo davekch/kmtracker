@@ -37,7 +37,7 @@ def get_args() -> argparse.Namespace:
     amend.add_argument("-s", "--segments", help="split this ride into n segments")
 
     ls = subparsers.add_parser("ls", help="show latest ride")
-    ls.add_argument("-n", help="number of entries to show", type=int, default=5)
+    ls.add_argument("-n", help="number of entries to show", type=int, default=-1)
 
     stats = subparsers.add_parser("stats")
 
