@@ -105,7 +105,10 @@ def main():
     elif args.command == "amend":
         parsed_args = parse_add_args(args, auto_timestamp=False)
         new = amend(config, id=args.id, **parsed_args)
-        pretty.console.print("Changed the latest entry:")
+        if args.id is None:
+            pretty.console.print("Changed the latest entry:")
+        else:
+            pretty.console.print(f"Changed entry with ID {args.id}:")
         pretty.print_rows([new])
     elif args.command == "ls":
         latest = get_latest(config, args.n)
