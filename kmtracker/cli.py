@@ -29,6 +29,7 @@ def get_args() -> argparse.Namespace:
     add.add_argument("-s", "--segments", help="split this ride into n segments")
 
     amend = subparsers.add_parser("amend", help="change the latest entry")
+    amend.add_argument("--id", help="ID of the entry to change. change the latest if omitted", type=int)
     amend.add_argument("-k", "--distance", help="distance in km")
     amend.add_argument("-t", "--timestamp", help="datetime of the ride")
     amend.add_argument("-d", "--duration", help="duration of the ride (hh:mm or hh:mm:ss)")
@@ -103,7 +104,7 @@ def main():
         pretty.print_rows([new])
     elif args.command == "amend":
         parsed_args = parse_add_args(args, auto_timestamp=False)
-        new = amend(config, **parsed_args)
+        new = amend(config, id=args.id, **parsed_args)
         pretty.console.print("Changed the latest entry:")
         pretty.print_rows([new])
     elif args.command == "ls":

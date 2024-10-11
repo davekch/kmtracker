@@ -46,6 +46,7 @@ def add(
 
 def amend(
     config: ConfigParser,
+    id: int = None,
     distance: float = None,
     timestamp: datetime = None,
     duration: timedelta = None,
@@ -53,8 +54,11 @@ def amend(
     segments: int = None,
 ) -> sqlite3.Row:
     with get_db_connection(get_db_path(config)) as connection:
-        db.amend(connection, distance, timestamp, duration, comment, segments)
-        new = db.get_last_entry(connection)
+        db.amend(connection, id, distance, timestamp, duration, comment, segments)
+        if not id:
+            new = db.get_last_entry(connection)
+        else:
+            new = db.get_entry(connection, id)
     return new
 
 

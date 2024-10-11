@@ -105,6 +105,7 @@ def add_entry(
 
 def amend(
     connection: sqlite3.Connection,
+    id: int,
     distance: float,
     timestamp: datetime,
     duration: timedelta,
@@ -133,9 +134,14 @@ def amend(
     if segments:
         setters.append(f"{Rides.columns.segments} = ?")
         values.append(segments)
+    if id is not None:
+        where_clause = "id = ?"
+        values.append(id)
+    else:
+        where_clause = f"id = (SELECT MAX(id) FROM {Rides.name})"
     command = f"""
         UPDATE {Rides.name} SET {', '.join(setters)}
-        WHERE id=(SELECT max(id) FROM {Rides.name})
+        WHERE {where_clause}
     """
     with closing(connection.cursor()) as cursor:
         cursor.execute(command, tuple(values))
@@ -151,8 +157,18 @@ def get_last_entry(connection: sqlite3.Connection) -> sqlite3.Row:
         return cursor.execute(
             f"SELECT id, {Rides.columns.timestamp}, {Rides.columns.distance}, {Rides.columns.duration}, {Rides.columns.comment}, {Rides.columns.segments} "
             f"FROM {Rides.name} "
-            f"WHERE id=(SELECT max(id) from {Rides.name})"
-        ).fetchall()[0]
+            f"WHERE id=(SELECT MAX(id) FROM {Rides.name})"
+        ).fetchone()
+
+
+def get_entry(connection: sqlite3.Connection, id: int) -> sqlite3.Row:
+    connection.row_factory = sqlite3.Row
+    with closing(connection.cursor()) as cursor:
+        return cursor.execute(
+            f"SELECT id, {Rides.columns.timestamp}, {Rides.columns.distance}, {Rides.columns.duration}, {Rides.columns.comment}, {Rides.columns.segments} "
+            f"FROM {Rides.name} WHERE id = ?",
+            (id,)
+        ).fetchone()
 
 
 def get_latest_entries(connection: sqlite3.Connection, n: int) -> list[sqlite3.Row]:
