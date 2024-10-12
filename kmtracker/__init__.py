@@ -73,14 +73,14 @@ def get_summary(config: ConfigParser) -> dict:
         s_tot = db.get_total_distance(connection)
         s_max, s_max_timestamp = db.get_max_distance_entry(connection)
         s_max_day, s_max_day_date = db.get_max_distance_by_day(connection)
-        v_max, v_max_timestamp = db.get_max_velocity_entry(connection)
-        v_avg = db.get_average_velocity(connection)
+        s_max, s_max_timestamp = db.get_max_speed_entry(connection)
+        s_avg = db.get_average_speed(connection)
         n = db.get_total_rides(connection)
     return {
         "distance_tot": s_tot,
         "distance_max": (s_max, s_max_timestamp),
         "distance_max_day": (s_max_day, s_max_day_date),
-        "velocity_max": (v_max, v_max_timestamp),
-        "velocity_mean": v_avg,
+        "speed_max": (s_max, s_max_timestamp),
+        "speed_mean": s_avg,
         "n_rides": n,
     }

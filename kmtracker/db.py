@@ -18,6 +18,12 @@ class Rides:
         comment = "comment"
         segments = "segments"
 
+    SELECT_ALL = (
+        f"SELECT id, {columns.timestamp}, {columns.distance}, {columns.duration}, "
+        f"{columns.distance} / {columns.duration} * 3600 AS speed, {columns.comment}, {columns.segments} "
+        f"FROM {name} "
+    )
+
 
 class Migrations:
     name = "_migrations"
@@ -155,9 +161,7 @@ def get_last_entry(connection: sqlite3.Connection) -> sqlite3.Row:
     connection.row_factory = sqlite3.Row
     with closing(connection.cursor()) as cursor:
         return cursor.execute(
-            f"SELECT id, {Rides.columns.timestamp}, {Rides.columns.distance}, {Rides.columns.duration}, {Rides.columns.comment}, {Rides.columns.segments} "
-            f"FROM {Rides.name} "
-            f"WHERE id=(SELECT MAX(id) FROM {Rides.name})"
+            f"{Rides.SELECT_ALL} WHERE id=(SELECT MAX(id) FROM {Rides.name})"
         ).fetchone()
 
 
@@ -165,8 +169,7 @@ def get_entry(connection: sqlite3.Connection, id: int) -> sqlite3.Row:
     connection.row_factory = sqlite3.Row
     with closing(connection.cursor()) as cursor:
         return cursor.execute(
-            f"SELECT id, {Rides.columns.timestamp}, {Rides.columns.distance}, {Rides.columns.duration}, {Rides.columns.comment}, {Rides.columns.segments} "
-            f"FROM {Rides.name} WHERE id = ?",
+            f"{Rides.SELECT_ALL} WHERE id = ?",
             (id,)
         ).fetchone()
 
@@ -178,9 +181,7 @@ def get_latest_entries(connection: sqlite3.Connection, n: int) -> list[sqlite3.R
     connection.row_factory = sqlite3.Row
     with closing(connection.cursor()) as cursor:
         latest = cursor.execute(
-            f"SELECT id, {Rides.columns.timestamp}, {Rides.columns.distance}, {Rides.columns.duration}, {Rides.columns.comment}, {Rides.columns.segments} "
-            f"FROM {Rides.name} "
-            f"ORDER BY {Rides.columns.timestamp} DESC LIMIT ?",
+            f"{Rides.SELECT_ALL} ORDER BY {Rides.columns.timestamp} DESC LIMIT ?",
             (n,)
         ).fetchall()
         return list(reversed(latest))
@@ -213,17 +214,17 @@ def get_max_distance_by_day(connection: sqlite3.Connection) -> tuple[int, str]:
         """).fetchone()
 
 
-def get_max_velocity_entry(connection: sqlite3.Connection) -> tuple[int, str]:
-    """return the maximum velocity with timestamp"""
+def get_max_speed_entry(connection: sqlite3.Connection) -> tuple[int, str]:
+    """return the maximum speed with timestamp"""
     with closing(connection.cursor()) as cursor:
         return cursor.execute(
-            f"SELECT MAX({Rides.columns.distance} / {Rides.columns.duration} * 3600) as velocity, {Rides.columns.timestamp} "
+            f"SELECT MAX({Rides.columns.distance} / {Rides.columns.duration} * 3600) as speed, {Rides.columns.timestamp} "
             f"FROM {Rides.name} WHERE {Rides.columns.duration} IS NOT NULL"
         ).fetchone()
 
 
-def get_average_velocity(connection: sqlite3.Connection) -> float:
-    """return the average velocity of all entries with a duration in km/h"""
+def get_average_speed(connection: sqlite3.Connection) -> float:
+    """return the average speed of all entries with a duration in km/h"""
     with closing(connection.cursor()) as cursor:
         s_km, t_s = cursor.execute(
             f"SELECT SUM({Rides.columns.distance}), SUM({Rides.columns.duration}) "

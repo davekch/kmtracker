@@ -16,6 +16,7 @@ pretty_field_names = {
     Rides.columns.duration: "Duration (hh:mm:ss)",
     Rides.columns.segments: "Segments",
     Rides.columns.comment: "Comment",
+    "speed": "Avg. speed (km/h),"
 }
 
 
@@ -35,6 +36,8 @@ def to_dict(row: sqlite3.Row) -> dict:
                 hours, remainder = divmod(dur.seconds, 3600)
                 minutes, seconds = divmod(remainder, 60)
                 d[pretty_field_names[k]] = f"{dur.days*24 + hours:02}:{minutes:02}:{seconds:02}"
+        elif k == "speed" and row[k]:
+            d[pretty_field_names[k]] = round(row[k], 1)
         else:
             d[pretty_field_names[k]] = row[k]
     return d
@@ -55,9 +58,9 @@ def print_rows(rows: list):
 def print_summary(summary: dict):
     dist_max, dist_max_date = summary["distance_max"]
     dist_max_day, dist_max_day_date = summary["distance_max_day"]
-    v_max, v_max_date = summary["velocity_max"]
-    console.print(f"total distance           : [bold green]{round(summary['distance_tot'], 2)}km[/bold green] ({summary['n_rides']} rides)")
-    console.print(f"longest ride             : {round(dist_max, 2)}km (on {dist_max_date.split('T')[0]})")
-    console.print(f"maximum distance on a day: {round(dist_max_day, 2)}km (on {dist_max_day_date})")
-    console.print(f"average velocity         : {round(summary['velocity_mean'], 1)}km/h")
-    console.print(f"fastest ride             : {round(v_max, 1)}km/h (on {v_max_date.split('T')[0]})")
+    s_max, s_max_date = summary["speed_max"]
+    console.print(f"total distance           : [bold green]{round(summary['distance_tot'], 2)} km[/bold green] ({summary['n_rides']} rides)")
+    console.print(f"longest ride             : {round(dist_max, 2)} km (on {dist_max_date.split('T')[0]})")
+    console.print(f"maximum distance on a day: {round(dist_max_day, 2)} km (on {dist_max_day_date})")
+    console.print(f"average speed            : {round(summary['speed_mean'], 1)} km/h")
+    console.print(f"fastest ride             : {round(s_max, 1)} km/h (on {s_max_date.split('T')[0]})")

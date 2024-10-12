@@ -56,7 +56,7 @@ $ kmtracker stats
 total distance           : 147.6km (7 rides)
 longest ride             : 65.0km (on 2024-10-08)
 maximum distance on a day: 65.0km (on 2024-10-08)
-average velocity         : 23.6km/h
+average speed            : 23.6km/h
 fastest ride             : 30.0km/h (on 2024-10-11)
 ```
 
