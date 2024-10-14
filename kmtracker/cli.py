@@ -12,6 +12,7 @@ from kmtracker import (
     get_db_path,
     add,
     amend,
+    from_gpx,
     get_latest,
     get_summary,
 )
@@ -37,6 +38,9 @@ def get_args() -> argparse.Namespace:
     amend.add_argument("-c", "--comment")
     amend.add_argument("-s", "--segments", help="split this ride into n segments")
     amend.add_argument("-g", "--gpx", help="add gpx file")
+
+    loadgpx = subparsers.add_parser("loadgpx", help="add entries from a gpx file")
+    loadgpx.add_argument("path", help="path to gpx file")
 
     ls = subparsers.add_parser("ls", help="show latest ride")
     ls.add_argument("-n", help="number of entries to show", type=int, default=-1)
@@ -118,6 +122,12 @@ def main():
         else:
             pretty.console.print(f"Changed entry with ID {args.id}:")
         pretty.print_rows([new])
+    elif args.command == "loadgpx":
+        gpx_path = Path(args.path)
+        if not gpx_path.exists():
+            print(f"file not found: {args.path}")
+        new = from_gpx(config, gpx_path)
+        pretty.print_rows(new)
     elif args.command == "ls":
         latest = get_latest(config, args.n)
         pretty.print_rows(latest)

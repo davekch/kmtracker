@@ -2,6 +2,7 @@ from configparser import ConfigParser
 from pathlib import Path
 from datetime import datetime, timedelta
 import sqlite3
+import gpxpy
 
 from kmtracker.db import get_db_connection
 from kmtracker import db
@@ -71,6 +72,28 @@ def amend(
             new = db.get_last_entry(connection)
         else:
             new = db.get_entry(connection, id)
+    return new
+
+
+def from_gpx(config: ConfigParser, gpx_path: Path) -> list[sqlite3.Row]:
+    """
+    read and parse gpx_path and create new entries from its contents
+    """
+    with open(gpx_path) as f:
+        gpx = gpxpy.parse(f)
+    new = []
+    for track in gpx.tracks:
+        moving_data = track.get_moving_data()
+        time_bounds = track.get_time_bounds()
+        new.append(add(
+            config=config,
+            distance=moving_data.moving_distance / 1000,
+            timestamp=time_bounds.start_time,
+            duration=time_bounds.end_time - time_bounds.start_time,
+            comment=track.name,
+            segments=len(track.segments),
+            gpx_path=gpx_path,
+        ))
     return new
 
 
