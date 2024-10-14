@@ -37,7 +37,7 @@ def to_dict(row: sqlite3.Row) -> dict:
                 hours, remainder = divmod(dur.seconds, 3600)
                 minutes, seconds = divmod(remainder, 60)
                 d[pretty_field_names[k]] = f"{dur.days*24 + hours:02}:{minutes:02}:{seconds:02}"
-        elif k == "speed" and row[k]:
+        elif isinstance(row[k], float):
             d[pretty_field_names[k]] = round(row[k], 1)
         elif k == "has_gpx":
             d[pretty_field_names[k]] = "✅" if row[k] else "-"
