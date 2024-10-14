@@ -196,6 +196,13 @@ def get_latest_entries(connection: sqlite3.Connection, n: int) -> list[sqlite3.R
         return list(reversed(latest))
 
 
+def get_gpx(connection: sqlite3.Connection, id: int) -> str | None:
+    with closing(connection.cursor()) as cursor:
+        return cursor.execute(
+            f"SELECT {Rides.columns.gpx} FROM {Rides.name} WHERE id = ?", (id,)
+        ).fetchone()[0]
+
+
 def get_total_distance(connection: sqlite3.Connection) -> float:
     with closing(connection.cursor()) as cursor:
         return cursor.execute(f"SELECT SUM({Rides.columns.distance}) FROM {Rides.name}").fetchone()[0]

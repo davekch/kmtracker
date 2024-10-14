@@ -103,6 +103,14 @@ def get_latest(config: ConfigParser, n: int) -> list[sqlite3.Row]:
     return latest
 
 
+def get_entry(config: ConfigParser, id: int) -> tuple[sqlite3.Row, str | None]:
+    """
+    get entry by ID. return row and gpx data separately
+    """
+    with get_db_connection(get_db_path(config)) as connection:
+        return db.get_entry(connection, id), db.get_gpx(connection, id)
+
+
 def get_summary(config: ConfigParser) -> dict:
     with get_db_connection(get_db_path(config)) as connection:
         s_tot = db.get_total_distance(connection)

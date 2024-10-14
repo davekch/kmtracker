@@ -2,6 +2,7 @@ import sqlite3
 from rich.console import Console
 from rich.table import Table
 from datetime import timedelta
+import gpxpy
 
 from kmtracker.db import Rides
 
@@ -21,6 +22,12 @@ pretty_field_names = {
 }
 
 
+def _format_duration(duration: timedelta) -> str:
+    hours, remainder = divmod(duration.seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{duration.days*24 + hours:02}:{minutes:02}:{seconds:02}"
+
+
 def to_dict(row: sqlite3.Row) -> dict:
     """
     convert a row of the rides table to a nicely formatted dict
@@ -34,9 +41,7 @@ def to_dict(row: sqlite3.Row) -> dict:
                 d[pretty_field_names[k]] = ""
             else:
                 dur = timedelta(seconds=row[k])
-                hours, remainder = divmod(dur.seconds, 3600)
-                minutes, seconds = divmod(remainder, 60)
-                d[pretty_field_names[k]] = f"{dur.days*24 + hours:02}:{minutes:02}:{seconds:02}"
+                d[pretty_field_names[k]] = _format_duration(dur)
         elif isinstance(row[k], float):
             d[pretty_field_names[k]] = round(row[k], 1)
         elif k == "has_gpx":
@@ -67,3 +72,17 @@ def print_summary(summary: dict):
     console.print(f"maximum distance on a day: {round(dist_max_day, 2)} km (on {dist_max_day_date})")
     console.print(f"average speed            : {round(summary['speed_mean'], 1)} km/h")
     console.print(f"fastest ride             : {round(s_max, 1)} km/h (on {s_max_date.split('T')[0]})")
+
+
+def print_entry(entry: sqlite3.Row, gpx_data: str):
+    print_rows([entry])
+    if gpx_data:
+        gpx = gpxpy.parse(gpx_data)
+        moving_data = gpx.get_moving_data()
+        elevation = gpx.get_uphill_downhill()
+        console.print(f"time in motion         : {_format_duration(timedelta(seconds=moving_data.moving_time))}")
+        console.print(f"time at rest           : {_format_duration(timedelta(seconds=moving_data.stopped_time))}")
+        console.print(f"average speed in motion: {round(moving_data.moving_distance / moving_data.moving_time * 3.6, 1)} km/h")
+        console.print(f"maximum speed          : {round(moving_data.max_speed * 3.6, 1)} km/h")
+        console.print(f"uphill                 : {round(elevation.uphill, 0)} m")
+        console.print(f"downhill               : {round(elevation.downhill, 0)} m")
