@@ -17,11 +17,13 @@ class Rides:
         duration = "duration_s"
         comment = "comment"
         segments = "segments"
+        gpx = "gpx"
 
     SELECT_ALL = (
         f"SELECT id, {columns.timestamp}, {columns.distance}, {columns.duration}, "
-        f"{columns.distance} / {columns.duration} * 3600 AS speed, {columns.comment}, {columns.segments} "
-        f"FROM {name} "
+        f"{columns.distance} / {columns.duration} * 3600 AS speed, {columns.comment}, {columns.segments}, "
+        f"CASE WHEN {columns.gpx} IS NULL THEN 0 ELSE 1 END AS has_gpx "
+        f"FROM {name}"
     )
 
 
@@ -88,6 +90,7 @@ def add_entry(
     duration: timedelta,
     comment: str,
     segments: int,
+    gpx: str,
 ):
     with closing(connection.cursor()) as cursor:
         cursor.execute(
@@ -96,14 +99,16 @@ def add_entry(
                 {Rides.columns.timestamp},
                 {Rides.columns.duration},
                 {Rides.columns.comment},
-                {Rides.columns.segments}
-            ) VALUES (?, ?, ?, ?, ?)""",
+                {Rides.columns.segments},
+                {Rides.columns.gpx}
+            ) VALUES (?, ?, ?, ?, ?, ?)""",
             (
                 distance,
                 timestamp.isoformat(),
                 _to_seconds(duration),
                 comment,
-                segments
+                segments,
+                gpx
             )
         )
     connection.commit()
@@ -117,6 +122,7 @@ def amend(
     duration: timedelta,
     comment: str,
     segments: int,
+    gpx: str,
 ):
     """
     change the latest entry with the given values
@@ -140,6 +146,9 @@ def amend(
     if segments:
         setters.append(f"{Rides.columns.segments} = ?")
         values.append(segments)
+    if gpx:
+        setters.append(f"{Rides.columns.gpx} = ?")
+        values.append(gpx)
     if id is not None:
         where_clause = "id = ?"
         values.append(id)

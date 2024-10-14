@@ -27,6 +27,7 @@ def get_args() -> argparse.Namespace:
     add.add_argument("-d", "--duration", help="duration of the ride")
     add.add_argument("-c", "--comment")
     add.add_argument("-s", "--segments", help="split this ride into n segments")
+    add.add_argument("-g", "--gpx", help="add gpx file")
 
     amend = subparsers.add_parser("amend", help="change the latest entry")
     amend.add_argument("--id", help="ID of the entry to change. change the latest if omitted", type=int)
@@ -35,6 +36,7 @@ def get_args() -> argparse.Namespace:
     amend.add_argument("-d", "--duration", help="duration of the ride (hh:mm or hh:mm:ss)")
     amend.add_argument("-c", "--comment")
     amend.add_argument("-s", "--segments", help="split this ride into n segments")
+    amend.add_argument("-g", "--gpx", help="add gpx file")
 
     ls = subparsers.add_parser("ls", help="show latest ride")
     ls.add_argument("-n", help="number of entries to show", type=int, default=-1)
@@ -82,6 +84,12 @@ def parse_add_args(args: argparse.Namespace, auto_timestamp=True) -> dict:
         except ValueError:
             print(f"invalid int value for argument segments: {args.segments!r}")
             sys.exit(1)
+    if args.gpx:
+        gpxpath = Path(args.gpx)
+        if not gpxpath.exists():
+            print(f"file not found: {args.gpx}")
+            sys.exit(1)
+        parsed["gpx_path"] = gpxpath
     return parsed
 
 

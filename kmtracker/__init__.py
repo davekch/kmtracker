@@ -37,9 +37,15 @@ def add(
     duration: timedelta = None,
     comment: str = "",
     segments: int = 1,
+    gpx_path: Path = None,
 ) -> sqlite3.Row:
+    if gpx_path:
+        with open(gpx_path) as f:
+            gpx = f.read()  # we don't care at this point if it's really gpx; user's responsibility
+    else:
+        gpx = None
     with get_db_connection(get_db_path(config)) as connection:
-        db.add_entry(connection, distance, timestamp, duration, comment, segments)
+        db.add_entry(connection, distance, timestamp, duration, comment, segments, gpx)
         new = db.get_last_entry(connection)
     return new
 
@@ -52,9 +58,15 @@ def amend(
     duration: timedelta = None,
     comment: str = None,
     segments: int = None,
+    gpx_path: Path = None,
 ) -> sqlite3.Row:
+    if gpx_path:
+        with open(gpx_path) as f:
+            gpx = f.read()  # we don't care at this point if it's really gpx; user's responsibility
+    else:
+        gpx = None
     with get_db_connection(get_db_path(config)) as connection:
-        db.amend(connection, id, distance, timestamp, duration, comment, segments)
+        db.amend(connection, id, distance, timestamp, duration, comment, segments, gpx)
         if not id:
             new = db.get_last_entry(connection)
         else:

@@ -16,7 +16,8 @@ pretty_field_names = {
     Rides.columns.duration: "Duration (hh:mm:ss)",
     Rides.columns.segments: "Segments",
     Rides.columns.comment: "Comment",
-    "speed": "Avg. speed (km/h),"
+    "speed": "Avg. speed (km/h)",
+    "has_gpx": "GPX",
 }
 
 
@@ -38,6 +39,8 @@ def to_dict(row: sqlite3.Row) -> dict:
                 d[pretty_field_names[k]] = f"{dur.days*24 + hours:02}:{minutes:02}:{seconds:02}"
         elif k == "speed" and row[k]:
             d[pretty_field_names[k]] = round(row[k], 1)
+        elif k == "has_gpx":
+            d[pretty_field_names[k]] = "✅" if row[k] else "-"
         else:
             d[pretty_field_names[k]] = row[k]
     return d
