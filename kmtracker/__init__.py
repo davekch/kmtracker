@@ -1,6 +1,7 @@
 from configparser import ConfigParser
 from pathlib import Path
 from datetime import datetime, timedelta
+from collections import Counter
 import sqlite3
 import gpxpy
 
@@ -111,6 +112,36 @@ def get_entry(config: ConfigParser, id: int) -> tuple[sqlite3.Row, str | None]:
         return db.get_entry(connection, id), db.get_gpx(connection, id)
 
 
+def get_streaks(config: ConfigParser) -> Counter[datetime]:
+    """
+    get lengths of streaks of consecutive ride-days mapped to the end-date of the streaks
+    {end_date: length_of_streak}
+    """
+    with get_db_connection(get_db_path(config)) as connection:
+        timestamps = db.get_timestamps(connection)
+    dates = []
+    for stamp, in timestamps:
+        date = datetime.fromisoformat(stamp).date()
+        if date not in dates:
+            # no duplicates
+            dates.append(date)
+    diffs = [(d1 - d2).days for d1, d2 in zip(dates, dates[1:])]
+    streaks = Counter()
+    on_streak = False
+    current_streak_date = None
+    for diff, date in zip(diffs + [0], dates):
+        if diff == 1:
+            if not on_streak:
+                on_streak = True
+                current_streak_date = date
+            streaks[current_streak_date] += 1
+        elif on_streak:
+            # count one more because the diff is one shorter than the # of days
+            streaks[current_streak_date] += 1
+            on_streak = False
+    return streaks
+
+
 def get_summary(config: ConfigParser) -> dict:
     with get_db_connection(get_db_path(config)) as connection:
         d_tot = db.get_total_distance(connection)
@@ -119,6 +150,8 @@ def get_summary(config: ConfigParser) -> dict:
         s_max, s_max_timestamp = db.get_max_speed_entry(connection)
         s_avg = db.get_average_speed(connection)
         n = db.get_total_rides(connection)
+    streaks = get_streaks(config)
+    longest_streaks = streaks.most_common(1)
     return {
         "distance_tot": d_tot,
         "distance_max": (d_max, d_max_timestamp),
@@ -126,4 +159,5 @@ def get_summary(config: ConfigParser) -> dict:
         "speed_max": (s_max, s_max_timestamp),
         "speed_mean": s_avg,
         "n_rides": n,
+        "longest_streaks": longest_streaks,
     }

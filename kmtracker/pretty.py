@@ -67,11 +67,18 @@ def print_summary(summary: dict):
     dist_max, dist_max_date = summary["distance_max"]
     dist_max_day, dist_max_day_date = summary["distance_max_day"]
     s_max, s_max_date = summary["speed_max"]
+    streaks = summary["longest_streaks"]
+    if not streaks:
+        streaks_text = "-"
+    else:
+        n = streaks[0][1]
+        streaks_text = f"{n} days (until {str(streaks[0][0])})"
     console.print(f"total distance           : [bold green]{round(summary['distance_tot'], 2)} km[/bold green] ({summary['n_rides']} rides)")
     console.print(f"longest ride             : {round(dist_max, 2)} km (on {dist_max_date.split('T')[0]})")
     console.print(f"maximum distance on a day: {round(dist_max_day, 2)} km (on {dist_max_day_date})")
     console.print(f"average speed            : {round(summary['speed_mean'], 1)} km/h")
     console.print(f"fastest ride             : {round(s_max, 1)} km/h (on {s_max_date.split('T')[0]})")
+    console.print(f"longest streaks          : {streaks_text}")
 
 
 def print_entry(entry: sqlite3.Row, gpx_data: str):

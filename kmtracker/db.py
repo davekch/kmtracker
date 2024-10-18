@@ -252,3 +252,10 @@ def get_average_speed(connection: sqlite3.Connection) -> float:
 def get_total_rides(connection: sqlite3.Connection) -> int:
     with closing(connection.cursor()) as cursor:
         return cursor.execute(f"SELECT SUM({Rides.columns.segments}) FROM {Rides.name}").fetchone()[0]
+
+
+def get_timestamps(connection: sqlite3.Connection) -> list:
+    with closing(connection.cursor()) as cursor:
+        return cursor.execute(
+            f"SELECT {Rides.columns.timestamp} FROM {Rides.name} ORDER BY {Rides.columns.timestamp} DESC"
+        ).fetchall()

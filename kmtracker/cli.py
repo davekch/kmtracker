@@ -16,6 +16,7 @@ from kmtracker import (
     get_latest,
     get_entry,
     get_summary,
+    get_streaks,
 )
 
 
@@ -118,6 +119,9 @@ def main():
         pretty.console.print("Success!✨ ", style="green bold", end="")
         pretty.console.print("Added a new ride:")
         pretty.print_rows([new])
+        streaks = get_streaks(config)
+        if (today := datetime.today().date()) in streaks:
+            pretty.console.print(f"🚴[bold green]You're on a streak![/bold green] {streaks[today]} days in a row")
     elif args.command == "amend":
         parsed_args = parse_add_args(args, auto_timestamp=False)
         new = amend(config, id=args.id, **parsed_args)
