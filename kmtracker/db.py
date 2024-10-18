@@ -212,7 +212,7 @@ def get_max_distance_entry(connection: sqlite3.Connection) -> tuple[int, str]:
     """get the maximum distance of a single ride with timestamp"""
     with closing(connection.cursor()) as cursor:
         return cursor.execute(
-            f"SELECT MAX({Rides.columns.distance}) / {Rides.columns.segments} AS {Rides.columns.distance}, {Rides.columns.timestamp} "
+            f"SELECT MAX({Rides.columns.distance} / {Rides.columns.segments}) AS {Rides.columns.distance}, {Rides.columns.timestamp} "
             f"FROM {Rides.name}"
         ).fetchone()
 

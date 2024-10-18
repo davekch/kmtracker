@@ -113,15 +113,15 @@ def get_entry(config: ConfigParser, id: int) -> tuple[sqlite3.Row, str | None]:
 
 def get_summary(config: ConfigParser) -> dict:
     with get_db_connection(get_db_path(config)) as connection:
-        s_tot = db.get_total_distance(connection)
-        s_max, s_max_timestamp = db.get_max_distance_entry(connection)
+        d_tot = db.get_total_distance(connection)
+        d_max, d_max_timestamp = db.get_max_distance_entry(connection)
         s_max_day, s_max_day_date = db.get_max_distance_by_day(connection)
         s_max, s_max_timestamp = db.get_max_speed_entry(connection)
         s_avg = db.get_average_speed(connection)
         n = db.get_total_rides(connection)
     return {
-        "distance_tot": s_tot,
-        "distance_max": (s_max, s_max_timestamp),
+        "distance_tot": d_tot,
+        "distance_max": (d_max, d_max_timestamp),
         "distance_max_day": (s_max_day, s_max_day_date),
         "speed_max": (s_max, s_max_timestamp),
         "speed_mean": s_avg,
