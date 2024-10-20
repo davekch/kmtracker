@@ -90,7 +90,7 @@ def from_gpx(config: ConfigParser, gpx_path: Path) -> list[sqlite3.Row]:
             config=config,
             distance=moving_data.moving_distance / 1000,
             timestamp=time_bounds.start_time,
-            duration=time_bounds.end_time - time_bounds.start_time,
+            duration=timedelta(seconds=moving_data.moving_time),
             comment=track.name,
             segments=len(track.segments),
             gpx_path=gpx_path,
