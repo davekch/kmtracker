@@ -189,11 +189,10 @@ def get_latest_entries(connection: sqlite3.Connection, n: int) -> list[sqlite3.R
     """
     connection.row_factory = sqlite3.Row
     with closing(connection.cursor()) as cursor:
-        latest = cursor.execute(
-            f"{Rides.SELECT_ALL} ORDER BY {Rides.columns.timestamp} ASC LIMIT ?",
+        return cursor.execute(
+            f"{Rides.SELECT_ALL} ORDER BY {Rides.columns.timestamp} DESC LIMIT ?",
             (n,)
         ).fetchall()
-        return list(reversed(latest))
 
 
 def get_gpx(connection: sqlite3.Connection, id: int) -> str | None:
