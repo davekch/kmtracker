@@ -137,6 +137,9 @@ def main():
             print(f"file not found: {args.path}")
         new = from_gpx(config, gpx_path)
         pretty.print_rows(new)
+        streaks = get_streaks(config)
+        if (today := datetime.today().date()) in streaks:
+            pretty.console.print(f"🚴[bold green]You're on a streak![/bold green] {streaks[today]} days in a row")
     elif args.command == "ls":
         latest = get_latest(config, args.n)
         pretty.print_rows(latest)
