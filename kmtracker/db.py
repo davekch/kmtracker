@@ -177,10 +177,13 @@ def get_last_entry(connection: sqlite3.Connection) -> sqlite3.Row:
 def get_entry(connection: sqlite3.Connection, id: int) -> sqlite3.Row:
     connection.row_factory = sqlite3.Row
     with closing(connection.cursor()) as cursor:
-        return cursor.execute(
+        row = cursor.execute(
             f"{Rides.SELECT_ALL} WHERE id = ?",
             (id,)
         ).fetchone()
+    if not row:
+        raise KeyError(f"no entry with ID {id}")
+    return row
 
 
 def get_latest_entries(connection: sqlite3.Connection, n: int) -> list[sqlite3.Row]:
@@ -197,9 +200,11 @@ def get_latest_entries(connection: sqlite3.Connection, n: int) -> list[sqlite3.R
 
 def get_gpx(connection: sqlite3.Connection, id: int) -> str | None:
     with closing(connection.cursor()) as cursor:
-        return cursor.execute(
+        row = cursor.execute(
             f"SELECT {Rides.columns.gpx} FROM {Rides.name} WHERE id = ?", (id,)
-        ).fetchone()[0]
+        ).fetchone()
+        if row:
+            return row[0]
 
 
 def get_total_distance(connection: sqlite3.Connection) -> float:
@@ -245,6 +250,8 @@ def get_average_speed(connection: sqlite3.Connection) -> float:
             f"SELECT SUM({Rides.columns.distance}), SUM({Rides.columns.duration}) "
             F"FROM {Rides.name} WHERE {Rides.columns.duration} IS NOT NULL"
         ).fetchone()
+    if t_s is None:
+        raise ValueError("no entries in database")
     return s_km / (t_s / 3600)
 
 

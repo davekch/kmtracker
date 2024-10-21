@@ -102,6 +102,7 @@ def parse_add_args(args: argparse.Namespace, auto_timestamp=True) -> dict:
     return parsed
 
 
+@pretty.pretty_errors
 def main():
     args = get_args()
     config = get_config()

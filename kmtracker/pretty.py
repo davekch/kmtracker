@@ -3,6 +3,7 @@ from rich.console import Console
 from rich.table import Table
 from datetime import timedelta
 import gpxpy
+from functools import wraps
 
 from kmtracker.db import Rides
 
@@ -93,3 +94,18 @@ def print_entry(entry: sqlite3.Row, gpx_data: str):
         console.print(f"maximum speed          : {round(moving_data.max_speed * 3.6, 1)} km/h")
         console.print(f"uphill                 : {round(elevation.uphill, 0)} m")
         console.print(f"downhill               : {round(elevation.downhill, 0)} m")
+
+
+def pretty_errors(f):
+    error = "[bold red]error[/bold red]:"
+    @wraps(f)
+    def _f(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except PermissionError:
+            console.print(f"{error} permission denied")
+        except gpxpy.gpx.GPXXMLSyntaxException:
+            console.print(f"{error} could not parse gpx file")
+        except Exception as e:
+            console.print(f"{error} {e}")
+    return _f
