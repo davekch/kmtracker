@@ -1,18 +1,15 @@
-[tool.poetry]
+[project]
 name = "kmtracker"
-version = "0.1.0"
-description = ""
-authors = ["David Koch"]
+version = "0.2.0"
+description = "Add your description here"
 readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "gpxpy>=1.6.2",
+    "python-dateutil>=2.9.0.post0",
+    "rich>=13.9.4",
+]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-rich = "^13.9.2"
-gpxpy = "^1.6.2"
-
-[tool.poetry.scripts]
+[project.scripts]
 kmtracker = "kmtracker.cli:main"
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
