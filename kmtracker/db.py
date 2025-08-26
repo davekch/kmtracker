@@ -27,6 +27,25 @@ class Rides:
     )
 
 
+class Alias:
+    """
+    represents a table of default values for rides
+    """
+    name = "aliases"
+    
+    class columns:
+        name = "name"
+        distance = "distance_km"
+        duration = "duration_s"
+        comment = "comment"
+        segments = "segments"
+
+    SELECT_ALL = (
+        f"SELECT id, {columns.name}, {columns.distance}, {columns.duration}, "
+        f"{columns.comment}, {columns.segments} FROM {name}"
+    )
+
+
 class Migrations:
     name = "_migrations"
 
@@ -81,6 +100,34 @@ def _to_seconds(duration: timedelta) -> int:
         return duration.days * 60 * 60 * 24 + duration.seconds
     else:
         return None
+
+
+def add_alias(
+    connection: sqlite3.Connection,
+    name: str,
+    distance: float,
+    duration: timedelta,
+    comment: str,
+    segments: int,
+):
+    with closing(connection.cursor()) as cursor:
+        cursor.execute(
+            f"""INSERT INTO {Alias.name} (
+                {Alias.columns.name},
+                {Alias.columns.distance},
+                {Alias.columns.duration},
+                {Alias.columns.comment},
+                {Alias.columns.segments}
+            ) VALUES (?, ?, ?, ?, ?)""",
+            (
+                name,
+                distance,
+                _to_seconds(duration),
+                comment,
+                segments,
+            )
+        )
+    connection.commit()
 
 
 def add_entry(

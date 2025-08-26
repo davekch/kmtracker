@@ -76,6 +76,20 @@ def amend(
     return new
 
 
+def add_alias(
+    config: ConfigParser,
+    name: str,
+    distance: float=None,
+    duration: timedelta=None,
+    comment: str="",
+    segments: int=1,
+):
+    with get_db_connection(get_db_path(config)) as connection:
+        db.add_alias(connection, name, distance, duration, comment, segments)
+        new = db.get_last_entry(connection, model=db.Alias)
+    return new
+
+
 def from_gpx(config: ConfigParser, gpx_path: Path) -> list[sqlite3.Row]:
     """
     read and parse gpx_path and create new entries from its contents
