@@ -1,7 +1,10 @@
 [project]
 name = "kmtracker"
 version = "0.2.0"
-description = "Add your description here"
+description = "dead simple cli tool to track bike rides"
+authors = [
+    { name = "davekch", email = "dvkch@proton.me" }
+]
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -16,6 +19,3 @@ kmtracker = "kmtracker.cli:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.hatch.build]
-packages = ["kmtracker"]
