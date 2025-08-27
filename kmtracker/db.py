@@ -5,6 +5,7 @@ from datetime import datetime
 from datetime import timedelta
 import glob
 import importlib
+from typing import Type
 
 
 # constants of table and column names
@@ -210,14 +211,14 @@ def amend(
     connection.commit()
 
 
-def get_last_entry(connection: sqlite3.Connection) -> sqlite3.Row:
+def get_last_entry(connection: sqlite3.Connection, model: Type=Rides) -> sqlite3.Row:
     """
     return the last entry (highest ID)
     """
     connection.row_factory = sqlite3.Row
     with closing(connection.cursor()) as cursor:
         return cursor.execute(
-            f"{Rides.SELECT_ALL} WHERE id=(SELECT MAX(id) FROM {Rides.name})"
+            f"{model.SELECT_ALL} WHERE id=(SELECT MAX(id) FROM {model.name})"
         ).fetchone()
 
 
