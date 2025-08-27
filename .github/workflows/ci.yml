@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    container:
+      image: ghcr.io/astral-sh/uv:alpine
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # ache uv’s package cache
+      - name: Cache uv packages
+        uses: actions/cache@v4
+        with:
+          path: /root/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          # check for previous caches and base the new run on it
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Install dependencies
+        run: uv sync --frozen --dev
+
+      - name: Run tests
+        run: uv run pytest
