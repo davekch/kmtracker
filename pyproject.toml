@@ -13,3 +13,9 @@ dependencies = [
 [project.scripts]
 kmtracker = "kmtracker.cli:main"
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+packages = ["kmtracker"]
