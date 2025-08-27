@@ -59,7 +59,7 @@ def get_db_connection(path: Path):
     return closing(sqlite3.connect(path))
 
 
-def migrate(path: Path):
+def migrate(connection: sqlite3.Connection):
     """
     migrate changes to the database schema to the database
     or create a new one
@@ -69,31 +69,30 @@ def migrate(path: Path):
         Path(m).stem for m in
         glob.glob(str(Path(__file__).parent / "_migrations" / "m*.py"))
     )
-    with get_db_connection(path) as connection:
-        with closing(connection.cursor()) as cursor:
-            # look up which migrations have already been performed
-            try:
-                migrations_performed = [
-                    result[0] for result in
-                    cursor.execute(f"SELECT {Migrations.columns.name} FROM {Migrations.name}").fetchall()
-                ]
-            except sqlite3.OperationalError:
-                migrations_performed = []
+    with closing(connection.cursor()) as cursor:
+        # look up which migrations have already been performed
+        try:
+            migrations_performed = [
+                result[0] for result in
+                cursor.execute(f"SELECT {Migrations.columns.name} FROM {Migrations.name}").fetchall()
+            ]
+        except sqlite3.OperationalError:
+            migrations_performed = []
 
-            # perform missing migrations
-            for module in migration_modules:
-                if module in migrations_performed:
-                    continue
-                print(f"performing migration '{module}'...")
-                migration = importlib.import_module(f"kmtracker._migrations.{module}")
-                migration.run(cursor)
-                # mark this migration as done
-                cursor.execute(
-                    f"INSERT INTO {Migrations.name} ({Migrations.columns.name}) VALUES (?)",
-                    (module,)
-                )
+        # perform missing migrations
+        for module in migration_modules:
+            if module in migrations_performed:
+                continue
+            print(f"performing migration '{module}'...")
+            migration = importlib.import_module(f"kmtracker._migrations.{module}")
+            migration.run(cursor)
+            # mark this migration as done
+            cursor.execute(
+                f"INSERT INTO {Migrations.name} ({Migrations.columns.name}) VALUES (?)",
+                (module,)
+            )
 
-        connection.commit()
+    connection.commit()
 
 
 def _to_seconds(duration: timedelta) -> int:

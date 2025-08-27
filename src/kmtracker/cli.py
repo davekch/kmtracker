@@ -121,10 +121,12 @@ def main():
     db_path = get_db_path(config)
 
     if not db_path.exists():
-        db.migrate(db_path)
+        with db.get_db_connection(db_path) as connection:
+            db.migrate(connection)
         print(f"created a new DB at {db_path}")
     else:
-        db.migrate(db_path)
+        with db.get_db_connection(db_path) as connection:
+            db.migrate(connection)
 
     if args.command == "add":
         parsed_args = convert_common_flags(args)
