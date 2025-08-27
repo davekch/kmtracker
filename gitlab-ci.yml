@@ -1,0 +1,10 @@
+stages:
+  - test
+
+
+test:
+  stage: test
+  image: ghcr.io/astral-sh/uv:alpine
+  script:
+    - uv sync --frozen --dev
+    - uv run pytest
