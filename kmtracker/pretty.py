@@ -20,6 +20,7 @@ pretty_field_names = {
     Rides.columns.comment: "Comment",
     "speed": "Avg. speed (km/h)",
     "has_gpx": "GPX",
+    "name": "Name",
 }
 
 

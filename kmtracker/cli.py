@@ -12,6 +12,7 @@ from kmtracker import (
     get_db_path,
     add,
     amend,
+    add_alias,
     from_gpx,
     get_latest,
     get_entry,
@@ -41,6 +42,13 @@ def get_args() -> argparse.Namespace:
     amend.add_argument("-s", "--segments", help="split this ride into n segments")
     amend.add_argument("-g", "--gpx", help="add gpx file")
 
+    alias = subparsers.add_parser("alias", help="save default values for a ride under a name")
+    alias.add_argument("name")
+    alias.add_argument("-k", "--distance", help="default value for distance in km")
+    alias.add_argument("-d", "--duration", help="default value for duration of the ride")
+    alias.add_argument("-c", "--comment", help="default value for comment")
+    alias.add_argument("-s", "--segments", help="default value for number of segments")
+
     loadgpx = subparsers.add_parser("loadgpx", help="add entries from a gpx file")
     loadgpx.add_argument("path", help="path to gpx file")
 
@@ -56,15 +64,19 @@ def get_args() -> argparse.Namespace:
     return args
 
 
-def parse_add_args(args: argparse.Namespace, auto_timestamp=True) -> dict:
+def convert_common_flags(args: argparse.Namespace, auto_timestamp=True) -> dict:
+    """
+    takes an argparse Namespace and parses and converts flags that are common across multiple
+    commands (add, alias, amend) like distance, timestamp, etc
+    """
     parsed = {}
-    if args.distance:
+    if hasattr(args, "distance") and args.distance:
         try:
             parsed["distance"] = float(args.distance)
         except ValueError:
             print(f"invalid float value for argument distance: {args.distance!r}")
             sys.exit(1)
-    if args.timestamp:
+    if hasattr(args, "timestamp") and args.timestamp:
         try:
             parsed["timestamp"] = dateutil.parser.parse(args.timestamp)
         except dateutil.parser.ParserError:
@@ -72,7 +84,7 @@ def parse_add_args(args: argparse.Namespace, auto_timestamp=True) -> dict:
             sys.exit(1)
     elif auto_timestamp:
         parsed["timestamp"] = datetime.now()
-    if args.duration:
+    if hasattr(args, "duration") and args.duration:
         try:
             # raises if the conversion to int fails or no case is matched
             match args.duration.split(":"):
@@ -85,15 +97,15 @@ def parse_add_args(args: argparse.Namespace, auto_timestamp=True) -> dict:
         except ValueError:
             print(f"invalid duration (must be hh:mm or hh:mm:ss): {args.duration!r}")
             sys.exit(1)
-    if args.comment is not None:
+    if hasattr(args, "comment") and args.comment is not None:
         parsed["comment"] = args.comment
-    if args.segments:
+    if hasattr(args, "segments") and args.segments:
         try:
             parsed["segments"] = int(args.segments)
         except ValueError:
             print(f"invalid int value for argument segments: {args.segments!r}")
             sys.exit(1)
-    if args.gpx:
+    if hasattr(args, "gpx") and args.gpx:
         gpxpath = Path(args.gpx)
         if not gpxpath.exists():
             print(f"file not found: {args.gpx}")
@@ -115,7 +127,7 @@ def main():
         db.migrate(db_path)
 
     if args.command == "add":
-        parsed_args = parse_add_args(args)
+        parsed_args = convert_common_flags(args)
         new = add(config, **parsed_args)
         pretty.console.print("Success!✨ ", style="green bold", end="")
         pretty.console.print("Added a new ride:")
@@ -124,12 +136,17 @@ def main():
         if (today := datetime.today().date()) in streaks:
             pretty.console.print(f"🚴[bold green]You're on a streak![/bold green] {streaks[today]} days in a row")
     elif args.command == "amend":
-        parsed_args = parse_add_args(args, auto_timestamp=False)
+        parsed_args = convert_common_flags(args, auto_timestamp=False)
         new = amend(config, id=args.id, **parsed_args)
         if args.id is None:
             pretty.console.print("Changed the latest entry:")
         else:
             pretty.console.print(f"Changed entry with ID {args.id}:")
+        pretty.print_rows([new])
+    elif args.command == "alias":
+        parsed_args = convert_common_flags(args, auto_timestamp=False)
+        new = add_alias(config, args.name, **parsed_args)
+        pretty.console.print(f"Added a new alias with name {args.name}:")
         pretty.print_rows([new])
     elif args.command == "loadgpx":
         gpx_path = Path(args.path)
