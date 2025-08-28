@@ -1,6 +1,7 @@
 import argparse
 import dateutil
 import sys
+from configparser import ConfigParser
 from datetime import datetime, timedelta
 import dateutil.parser
 from pathlib import Path
@@ -21,6 +22,60 @@ from kmtracker import (
 )
 
 
+def cli_add(config: ConfigParser, args: argparse.Namespace):
+    parsed_args = convert_common_flags(args)
+    new = add(config, **parsed_args)
+    pretty.console.print("Success!✨ ", style="green bold", end="")
+    pretty.console.print("Added a new ride:")
+    pretty.print_rows([new])
+    streaks = get_streaks(config)
+    if (today := datetime.today().date()) in streaks:
+        pretty.console.print(f"🚴[bold green]You're on a streak![/bold green] {streaks[today]} days in a row")
+
+
+def cli_amend(config: ConfigParser, args: argparse.Namespace):
+    parsed_args = convert_common_flags(args, auto_timestamp=False)
+    new = amend(config, id=args.id, **parsed_args)
+    if args.id is None:
+        pretty.console.print("Changed the latest entry:")
+    else:
+        pretty.console.print(f"Changed entry with ID {args.id}:")
+    pretty.print_rows([new])
+
+
+def cli_alias(config: ConfigParser, args: argparse.Namespace):
+    parsed_args = convert_common_flags(args, auto_timestamp=False)
+    new = add_alias(config, args.name, **parsed_args)
+    pretty.console.print(f"Added a new alias with name {args.name}:")
+    pretty.print_rows([new])
+
+
+def cli_loadgpx(config: ConfigParser, args: argparse.Namespace):
+    gpx_path = Path(args.path)
+    if not gpx_path.exists():
+        print(f"file not found: {args.path}")
+    new = from_gpx(config, gpx_path)
+    pretty.print_rows(new)
+    streaks = get_streaks(config)
+    if (today := datetime.today().date()) in streaks:
+        pretty.console.print(f"🚴[bold green]You're on a streak![/bold green] {streaks[today]} days in a row")
+
+
+def cli_ls(config: ConfigParser, args: argparse.Namespace):
+    latest = get_latest(config, args.n)
+    pretty.print_rows(latest)
+
+
+def cli_show(config: ConfigParser, args: argparse.Namespace):
+    entry, gpx_data = get_entry(config, args.id)
+    pretty.print_entry(entry, gpx_data)
+
+
+def cli_stats(config: ConfigParser, args: argparse.Namespace):
+    summary = get_summary(config)
+    pretty.print_summary(summary)
+
+
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--config", help="path to config file", type=Path)
@@ -33,6 +88,7 @@ def get_args() -> argparse.Namespace:
     add.add_argument("-c", "--comment")
     add.add_argument("-s", "--segments", help="split this ride into n segments")
     add.add_argument("-g", "--gpx", help="add gpx file")
+    add.set_defaults(func=cli_add)
 
     amend = subparsers.add_parser("amend", help="change the latest entry")
     amend.add_argument("--id", help="ID of the entry to change. change the latest if omitted", type=int)
@@ -42,6 +98,7 @@ def get_args() -> argparse.Namespace:
     amend.add_argument("-c", "--comment")
     amend.add_argument("-s", "--segments", help="split this ride into n segments")
     amend.add_argument("-g", "--gpx", help="add gpx file")
+    amend.set_defaults(func=cli_amend)
 
     alias = subparsers.add_parser("alias", help="save default values for a ride under a name")
     alias.add_argument("name")
@@ -49,17 +106,22 @@ def get_args() -> argparse.Namespace:
     alias.add_argument("-d", "--duration", help="default value for duration of the ride")
     alias.add_argument("-c", "--comment", help="default value for comment")
     alias.add_argument("-s", "--segments", help="default value for number of segments")
+    alias.set_defaults(func=cli_alias)
 
     loadgpx = subparsers.add_parser("loadgpx", help="add entries from a gpx file")
     loadgpx.add_argument("path", help="path to gpx file")
+    loadgpx.set_defaults(func=cli_loadgpx)
 
     ls = subparsers.add_parser("ls", help="show latest ride")
     ls.add_argument("-n", help="number of entries to show", type=int, default=-1)
+    ls.set_defaults(func=cli_ls)
 
     show = subparsers.add_parser("show", help="show details of an entry")
     show.add_argument("id", help="ID of the entry", type=int)
+    show.set_defaults(func=cli_show)
 
     stats = subparsers.add_parser("stats")
+    stats.set_defaults(func=cli_stats)
 
     args = parser.parse_args()
     return args
@@ -132,46 +194,7 @@ def main():
         with db.get_db_connection(db_path) as connection:
             db.migrate(connection)
 
-    if args.command == "add":
-        parsed_args = convert_common_flags(args)
-        new = add(config, **parsed_args)
-        pretty.console.print("Success!✨ ", style="green bold", end="")
-        pretty.console.print("Added a new ride:")
-        pretty.print_rows([new])
-        streaks = get_streaks(config)
-        if (today := datetime.today().date()) in streaks:
-            pretty.console.print(f"🚴[bold green]You're on a streak![/bold green] {streaks[today]} days in a row")
-    elif args.command == "amend":
-        parsed_args = convert_common_flags(args, auto_timestamp=False)
-        new = amend(config, id=args.id, **parsed_args)
-        if args.id is None:
-            pretty.console.print("Changed the latest entry:")
-        else:
-            pretty.console.print(f"Changed entry with ID {args.id}:")
-        pretty.print_rows([new])
-    elif args.command == "alias":
-        parsed_args = convert_common_flags(args, auto_timestamp=False)
-        new = add_alias(config, args.name, **parsed_args)
-        pretty.console.print(f"Added a new alias with name {args.name}:")
-        pretty.print_rows([new])
-    elif args.command == "loadgpx":
-        gpx_path = Path(args.path)
-        if not gpx_path.exists():
-            print(f"file not found: {args.path}")
-        new = from_gpx(config, gpx_path)
-        pretty.print_rows(new)
-        streaks = get_streaks(config)
-        if (today := datetime.today().date()) in streaks:
-            pretty.console.print(f"🚴[bold green]You're on a streak![/bold green] {streaks[today]} days in a row")
-    elif args.command == "ls":
-        latest = get_latest(config, args.n)
-        pretty.print_rows(latest)
-    elif args.command == "show":
-        entry, gpx_data = get_entry(config, args.id)
-        pretty.print_entry(entry, gpx_data)
-    elif args.command == "stats":
-        summary = get_summary(config)
-        pretty.print_summary(summary)
+    args.func(config, args)
 
 
 if __name__ == "__main__":
