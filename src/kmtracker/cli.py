@@ -14,6 +14,7 @@ from kmtracker import (
     add,
     amend,
     add_alias,
+    get_aliases,
     from_gpx,
     get_latest,
     get_entry,
@@ -43,11 +44,16 @@ def cli_amend(config: ConfigParser, args: argparse.Namespace):
     pretty.print_rows([new])
 
 
-def cli_alias(config: ConfigParser, args: argparse.Namespace):
+def cli_alias_add(config: ConfigParser, args: argparse.Namespace):
     parsed_args = convert_common_flags(args, auto_timestamp=False)
     new = add_alias(config, args.name, **parsed_args)
     pretty.console.print(f"Added a new alias with name {args.name}:")
     pretty.print_rows([new])
+
+
+def cli_alias_ls(config: ConfigParser, args: argparse.Namespace):
+    aliases = get_aliases(config)
+    pretty.print_rows(aliases)
 
 
 def cli_loadgpx(config: ConfigParser, args: argparse.Namespace):
@@ -100,13 +106,17 @@ def get_args() -> argparse.Namespace:
     amend.add_argument("-g", "--gpx", help="add gpx file")
     amend.set_defaults(func=cli_amend)
 
-    alias = subparsers.add_parser("alias", help="save default values for a ride under a name")
-    alias.add_argument("name")
-    alias.add_argument("-k", "--distance", help="default value for distance in km")
-    alias.add_argument("-d", "--duration", help="default value for duration of the ride")
-    alias.add_argument("-c", "--comment", help="default value for comment")
-    alias.add_argument("-s", "--segments", help="default value for number of segments")
-    alias.set_defaults(func=cli_alias)
+    alias = subparsers.add_parser("alias", help="manage default values for rides")
+    alias_subparsers = alias.add_subparsers(dest="command", required=True)
+    alias_add = alias_subparsers.add_parser("add", help="add an alias")
+    alias_add.add_argument("name")
+    alias_add.add_argument("-k", "--distance", help="default value for distance in km")
+    alias_add.add_argument("-d", "--duration", help="default value for duration of the ride")
+    alias_add.add_argument("-c", "--comment", help="default value for comment")
+    alias_add.add_argument("-s", "--segments", help="default value for number of segments")
+    alias_add.set_defaults(func=cli_alias_add)
+    alias_ls = alias_subparsers.add_parser("ls", help="list all aliases")
+    alias_ls.set_defaults(func=cli_alias_ls)
 
     loadgpx = subparsers.add_parser("loadgpx", help="add entries from a gpx file")
     loadgpx.add_argument("path", help="path to gpx file")

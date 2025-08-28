@@ -130,6 +130,14 @@ def add_alias(
     connection.commit()
 
 
+def get_aliases(connection: sqlite3.Connection) -> list[sqlite3.Row]:
+    connection.row_factory = sqlite3.Row
+    with closing(connection.cursor()) as cursor:
+        return cursor.execute(
+            f"{Alias.SELECT_ALL} ORDER BY {Alias.columns.name} ASC"
+        ).fetchall()
+
+
 def add_entry(
     connection: sqlite3.Connection,
     distance: float,

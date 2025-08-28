@@ -91,6 +91,12 @@ def add_alias(
     return new
 
 
+def get_aliases(config: ConfigParser) -> list[sqlite3.Row]:
+    with get_db_connection(get_db_path(config)) as connection:
+        aliases = db.get_aliases(connection)
+    return aliases
+
+
 def from_gpx(config: ConfigParser, gpx_path: Path) -> list[sqlite3.Row]:
     """
     read and parse gpx_path and create new entries from its contents
