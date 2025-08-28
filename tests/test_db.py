@@ -31,3 +31,31 @@ def test_add(connection):
     assert row["duration_s"] == 37*60
     assert row["comment"] == "test"
     assert row["segments"] == 1
+
+
+def test_amend(connection):
+    db.add_entry(
+        connection=connection,
+        distance=12,
+        timestamp=datetime(2025, 8, 11, 10),
+        duration=timedelta(minutes=37),
+        comment="test",
+        segments=1,
+        gpx=""
+    )
+    db.amend(
+        connection=connection,
+        id=1,
+        distance=12.5,  # <- only change one col
+        timestamp=None,
+        duration=None,
+        comment=None,
+        segments=None,
+        gpx=None,
+    )
+    row = db.get_last_entry(connection)
+    assert row["timestamp"] == datetime(2025, 8, 11, 10).isoformat()
+    assert row["distance_km"] == 12.5 # <- this alone should be changed
+    assert row["duration_s"] == 37*60
+    assert row["comment"] == "test"
+    assert row["segments"] == 1
