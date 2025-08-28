@@ -4,27 +4,28 @@ from datetime import datetime, timedelta
 from collections import Counter
 import sqlite3
 import gpxpy
+import os
 
 from kmtracker.db import get_db_connection
 from kmtracker import db
 
 
-CONFIG_PATH = Path("~/.config/kmtracker.cfg").expanduser()
+DEFAULT_CONFIG_PATH = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "kmtracker.cfg"
 DEFAULT_DB_PATH = "~/.kmtracker.sqlite3"
 
 
-def get_config() -> ConfigParser:
+def get_config(path: Path=DEFAULT_CONFIG_PATH) -> ConfigParser:
     config = ConfigParser()
-    if not CONFIG_PATH.exists():
+    if not path.exists():
         print("✨Welcome to kmtracker!✨\n")
         config["db"] = {
             "path": input(f"database file [{DEFAULT_DB_PATH}]: ") or DEFAULT_DB_PATH
         }
-        with open(CONFIG_PATH, "w") as f:
+        with open(path, "w") as f:
             config.write(f)
-            print(f"saved config to {CONFIG_PATH}")
+            print(f"saved config to {path}")
     else:
-        config.read([CONFIG_PATH])
+        config.read(path)
     return config
 
 

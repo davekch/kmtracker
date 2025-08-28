@@ -23,6 +23,7 @@ from kmtracker import (
 
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
+    parser.add_argument("-f", "--config", help="path to config file", type=Path)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     add = subparsers.add_parser("add", help="add a new ride")
@@ -117,7 +118,10 @@ def convert_common_flags(args: argparse.Namespace, auto_timestamp=True) -> dict:
 @pretty.pretty_errors
 def main():
     args = get_args()
-    config = get_config()
+    if args.config:
+        config = get_config(args.config)
+    else:
+        config = get_config()
     db_path = get_db_path(config)
 
     if not db_path.exists():
