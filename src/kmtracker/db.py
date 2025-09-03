@@ -210,6 +210,66 @@ class Ride(Model):
             ).fetchall()
         return [cls(row) for row in rows]
 
+    @classmethod
+    def get_total_distance(cls, db: Database) -> float:
+        with closing(db.cursor()) as cursor:
+            return cursor.execute(f"SELECT SUM({cls.columns.distance}) FROM {cls.table}").fetchone()[0]
+
+    @classmethod
+    def get_max_distance_entry(cls, db: Database) -> tuple[int, str]:
+        """get the maximum distance of a single ride with timestamp"""
+        with closing(db.cursor()) as cursor:
+            return cursor.execute(
+                f"SELECT MAX({cls.columns.distance} / {cls.columns.segments}) AS {cls.columns.distance}, {cls.columns.timestamp} "
+                f"FROM {cls.table}"
+            ).fetchone()
+
+    @classmethod
+    def get_max_distance_by_day(cls, db: Database) -> tuple[int, str]:
+        """get the maximum distance covered on a day"""
+        with closing(db.cursor()) as cursor:
+            return cursor.execute(f"""
+                SELECT MAX(daily_distance), day
+                FROM (
+                    SELECT DATE({Ride.columns.timestamp}) as day, SUM({Ride.columns.distance}) as daily_distance
+                    FROM {Ride.table}
+                    GROUP BY day
+                )
+            """).fetchone()
+
+    @classmethod
+    def get_max_speed_entry(cls, db: Database) -> tuple[int, str]:
+        """return the maximum speed with timestamp"""
+        with closing(db.cursor()) as cursor:
+            return cursor.execute(
+                f"SELECT MAX({cls.columns.distance} / {cls.columns.duration} * 3600) as speed, {cls.columns.timestamp} "
+                f"FROM {cls.table} WHERE {cls.columns.duration} IS NOT NULL"
+            ).fetchone()
+
+    @classmethod
+    def get_average_speed(cls, db: Database) -> float:
+        """return the average speed of all entries with a duration in km/h"""
+        with closing(db.cursor()) as cursor:
+            s_km, t_s = cursor.execute(
+                f"SELECT SUM({cls.columns.distance}), SUM({cls.columns.duration}) "
+                F"FROM {cls.table} WHERE {cls.columns.duration} IS NOT NULL"
+            ).fetchone()
+        if t_s is None:
+            raise ValueError("no entries in database")
+        return s_km / (t_s / 3600)
+
+    @classmethod
+    def get_total_rides(cls, db: Database) -> int:
+        with closing(db.cursor()) as cursor:
+            return cursor.execute(f"SELECT SUM({cls.columns.segments}) FROM {cls.table}").fetchone()[0]
+
+    @classmethod
+    def get_timestamps(cls, db: Database) -> list:
+        with closing(db.cursor()) as cursor:
+            return cursor.execute(
+                f"SELECT {cls.columns.timestamp} FROM {cls.table} ORDER BY {cls.columns.timestamp} DESC"
+            ).fetchall()
+
 
 class Alias:
     """
@@ -318,74 +378,4 @@ def get_aliases(connection: sqlite3.Connection) -> list[sqlite3.Row]:
     with closing(connection.cursor()) as cursor:
         return cursor.execute(
             f"{Alias.SELECT_ALL} ORDER BY {Alias.columns.name} ASC"
-        ).fetchall()
-
-
-
-def get_gpx(connection: sqlite3.Connection, id: int) -> str | None:
-    with closing(connection.cursor()) as cursor:
-        row = cursor.execute(
-            f"SELECT {Ride.columns.gpx} FROM {Ride.table} WHERE id = ?", (id,)
-        ).fetchone()
-        if row:
-            return row[0]
-
-
-def get_total_distance(connection: sqlite3.Connection) -> float:
-    with closing(connection.cursor()) as cursor:
-        return cursor.execute(f"SELECT SUM({Ride.columns.distance}) FROM {Ride.table}").fetchone()[0]
-
-
-def get_max_distance_entry(connection: sqlite3.Connection) -> tuple[int, str]:
-    """get the maximum distance of a single ride with timestamp"""
-    with closing(connection.cursor()) as cursor:
-        return cursor.execute(
-            f"SELECT MAX({Ride.columns.distance} / {Ride.columns.segments}) AS {Ride.columns.distance}, {Ride.columns.timestamp} "
-            f"FROM {Ride.table}"
-        ).fetchone()
-
-
-def get_max_distance_by_day(connection: sqlite3.Connection) -> tuple[int, str]:
-    """get the maximum distance covered on a day"""
-    with closing(connection.cursor()) as cursor:
-        return cursor.execute(f"""
-            SELECT MAX(daily_distance), day
-            FROM (
-                SELECT DATE({Ride.columns.timestamp}) as day, SUM({Ride.columns.distance}) as daily_distance
-                FROM {Ride.table}
-                GROUP BY day
-            )
-        """).fetchone()
-
-
-def get_max_speed_entry(connection: sqlite3.Connection) -> tuple[int, str]:
-    """return the maximum speed with timestamp"""
-    with closing(connection.cursor()) as cursor:
-        return cursor.execute(
-            f"SELECT MAX({Ride.columns.distance} / {Ride.columns.duration} * 3600) as speed, {Ride.columns.timestamp} "
-            f"FROM {Ride.table} WHERE {Ride.columns.duration} IS NOT NULL"
-        ).fetchone()
-
-
-def get_average_speed(connection: sqlite3.Connection) -> float:
-    """return the average speed of all entries with a duration in km/h"""
-    with closing(connection.cursor()) as cursor:
-        s_km, t_s = cursor.execute(
-            f"SELECT SUM({Ride.columns.distance}), SUM({Ride.columns.duration}) "
-            F"FROM {Ride.table} WHERE {Ride.columns.duration} IS NOT NULL"
-        ).fetchone()
-    if t_s is None:
-        raise ValueError("no entries in database")
-    return s_km / (t_s / 3600)
-
-
-def get_total_rides(connection: sqlite3.Connection) -> int:
-    with closing(connection.cursor()) as cursor:
-        return cursor.execute(f"SELECT SUM({Ride.columns.segments}) FROM {Ride.table}").fetchone()[0]
-
-
-def get_timestamps(connection: sqlite3.Connection) -> list:
-    with closing(connection.cursor()) as cursor:
-        return cursor.execute(
-            f"SELECT {Ride.columns.timestamp} FROM {Ride.table} ORDER BY {Ride.columns.timestamp} DESC"
         ).fetchall()
