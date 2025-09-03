@@ -2,34 +2,34 @@ import argparse
 import dateutil
 import sys
 from configparser import ConfigParser
+from contextlib import closing
 from datetime import datetime, timedelta
 import dateutil.parser
 from pathlib import Path
 
-from kmtracker import db
+from kmtracker.db import Database, Ride
 from kmtracker import pretty
 from kmtracker import (
     get_config,
     get_db_path,
-    add,
+    get_database,
     amend,
     add_alias,
     get_aliases,
     from_gpx,
     get_latest,
     get_entry,
-    get_summary,
-    get_streaks,
 )
 
 
-def cli_add(config: ConfigParser, args: argparse.Namespace):
+def cli_add(database: Database, args: argparse.Namespace):
     parsed_args = convert_common_flags(args)
-    new = add(config, **parsed_args)
+    Ride(database, **parsed_args).save()
+    new = Ride.get_last_row(database)
     pretty.console.print("Success!✨ ", style="green bold", end="")
     pretty.console.print("Added a new ride:")
-    pretty.print_rows([new])
-    streaks = get_streaks(config)
+    pretty.print_rides([new])
+    streaks = Ride.get_streaks(database)
     if (today := datetime.today().date()) in streaks:
         pretty.console.print(f"🚴[bold green]You're on a streak![/bold green] {streaks[today]} days in a row")
 
@@ -183,7 +183,8 @@ def convert_common_flags(args: argparse.Namespace, auto_timestamp=True) -> dict:
         if not gpxpath.exists():
             print(f"file not found: {args.gpx}")
             sys.exit(1)
-        parsed["gpx_path"] = gpxpath
+        with open(gpxpath) as f:
+            parsed["gpx"] = f.read()
     return parsed
 
 
@@ -196,15 +197,14 @@ def main():
         config = get_config()
     db_path = get_db_path(config)
 
-    if not db_path.exists():
-        with db.get_db_connection(db_path) as connection:
-            db.migrate(connection)
-        print(f"created a new DB at {db_path}")
-    else:
-        with db.get_db_connection(db_path) as connection:
-            db.migrate(connection)
+    with closing(get_database(config)) as database:
+        if not db_path.exists():
+            database.migrate()
+            print(f"created a new DB at {db_path}")
+        else:
+            database.migrate()
 
-    args.func(config, args)
+        args.func(database, args)
 
 
 if __name__ == "__main__":

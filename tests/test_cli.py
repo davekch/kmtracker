@@ -14,8 +14,7 @@ def config_path(tmp_path):
             f"path = {tmp_path}/test.sqlite3\n"
         )
     # prepare the db
-    with db.get_db_connection(tmp_path / "test.sqlite3") as connection:
-        db.migrate(connection)
+    db.Database(tmp_path / "test.sqlite3").migrate()
     return path
 
 
