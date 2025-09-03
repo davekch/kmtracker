@@ -1,6 +1,7 @@
 import sqlite3
 from pathlib import Path
 from contextlib import closing
+from collections import Counter
 from datetime import datetime
 from datetime import timedelta
 from enum import Enum
@@ -303,6 +304,55 @@ class Ride(Model):
             return cursor.execute(
                 f"SELECT {cls.columns.timestamp} FROM {cls.table} ORDER BY {cls.columns.timestamp} DESC"
             ).fetchall()
+
+    @classmethod
+    def get_streaks(cls, db: Database) -> Counter[datetime]:
+        """
+        get lengths of streaks of consecutive ride-days mapped to the end-date of the streaks
+        {end_date: length_of_streak}
+        """
+        timestamps = cls.get_timestamps(db)
+        dates = []
+        for stamp, in timestamps:
+            date = datetime.fromisoformat(stamp).date()
+            if date not in dates:
+                # no duplicates
+                dates.append(date)
+        diffs = [(d1 - d2).days for d1, d2 in zip(dates, dates[1:])]
+        streaks = Counter()
+        on_streak = False
+        current_streak_date = None
+        for diff, date in zip(diffs + [0], dates):
+            if diff == 1:
+                if not on_streak:
+                    on_streak = True
+                    current_streak_date = date
+                streaks[current_streak_date] += 1
+            elif on_streak:
+                # count one more because the diff is one shorter than the # of days
+                streaks[current_streak_date] += 1
+                on_streak = False
+        return streaks
+
+    @classmethod
+    def get_summary(cls, db: Database) -> dict:
+        d_tot = cls.get_total_distance(db)
+        d_max, d_max_timestamp = cls.get_max_distance_entry(db)
+        s_max_day, s_max_day_date = cls.get_max_distance_by_day(db)
+        s_max, s_max_timestamp = cls.get_max_speed_entry(db)
+        s_avg = cls.get_average_speed(db)
+        n = cls.get_total_rides(db)
+        streaks = cls.get_streaks(db)
+        longest_streaks = streaks.most_common(1)
+        return {
+            "distance_tot": d_tot,
+            "distance_max": (d_max, d_max_timestamp),
+            "distance_max_day": (s_max_day, s_max_day_date),
+            "speed_max": (s_max, s_max_timestamp),
+            "speed_mean": s_avg,
+            "n_rides": n,
+            "longest_streaks": longest_streaks,
+        }
 
 
 class Alias:
