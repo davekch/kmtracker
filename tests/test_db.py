@@ -8,7 +8,7 @@ from kmtracker import db
 def database():
     _db = db.Database(":memory:")
     try:
-        db.migrate(_db.connection)
+        _db.migrate()
         yield _db
     finally:
         _db.close()
