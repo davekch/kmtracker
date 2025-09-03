@@ -7,7 +7,6 @@ import sqlite3
 import gpxpy
 import os
 
-from kmtracker.db import get_db_connection
 from kmtracker import db
 
 
@@ -36,30 +35,6 @@ def get_db_path(config: ConfigParser) -> Path:
 
 def get_database(config: ConfigParser) -> db.Database:
     return db.Database(get_db_path(config))
-
-
-def amend(
-    config: ConfigParser,
-    id: int = None,
-    distance: float = None,
-    timestamp: datetime = None,
-    duration: timedelta = None,
-    comment: str = None,
-    segments: int = None,
-    gpx_path: Path = None,
-) -> sqlite3.Row:
-    if gpx_path:
-        with open(gpx_path) as f:
-            gpx = f.read()  # we don't care at this point if it's really gpx; user's responsibility
-    else:
-        gpx = None
-    with get_db_connection(get_db_path(config)) as connection:
-        db.amend(connection, id, distance, timestamp, duration, comment, segments, gpx)
-        if not id:
-            new = db.get_last_entry(connection)
-        else:
-            new = db.get_entry(connection, id)
-    return new
 
 
 def add_alias(

@@ -13,7 +13,6 @@ from kmtracker import (
     get_config,
     get_db_path,
     get_database,
-    amend,
     add_alias,
     get_aliases,
     from_gpx,
@@ -34,14 +33,18 @@ def cli_add(database: Database, args: argparse.Namespace):
         pretty.console.print(f"🚴[bold green]You're on a streak![/bold green] {streaks[today]} days in a row")
 
 
-def cli_amend(config: ConfigParser, args: argparse.Namespace):
+def cli_amend(database: Database, args: argparse.Namespace):
     parsed_args = convert_common_flags(args, auto_timestamp=False)
-    new = amend(config, id=args.id, **parsed_args)
     if args.id is None:
         pretty.console.print("Changed the latest entry:")
+        ride = Ride.get_last_row(database)
     else:
         pretty.console.print(f"Changed entry with ID {args.id}:")
-    pretty.print_rows([new])
+        ride = Ride.get_row(args.id)
+    for field, value in parsed_args.items():
+        setattr(ride, field, value)
+    ride.save()
+    pretty.print_rides([ride])
 
 
 def cli_alias_add(config: ConfigParser, args: argparse.Namespace):
