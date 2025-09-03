@@ -3,29 +3,212 @@ from pathlib import Path
 from contextlib import closing
 from datetime import datetime
 from datetime import timedelta
+from enum import Enum
 import glob
 import importlib
-from typing import Type
+from typing import Self
+
+
+class Database:
+    def __init__(self, path: str):
+        self.connection = sqlite3.connect(path)
+        self.connection.row_factory = sqlite3.Row
+
+    def close(self):
+        self.connection.close()
+
+    def cursor(self) -> sqlite3.Cursor:
+        return self.connection.cursor()
+
+    def commit(self):
+        self.connection.commit()
+
+
+class Field:
+    def __init__(self, column_name: str, display_name: str=None):
+        self.name = column_name
+        self.display_name = display_name or column_name
+
+    def parse(self, value):
+        return value
+
+    def serialize(self, value):
+        return value
+
+
+class DatetimeField(Field):
+    def parse(self, value: str):
+        if value:
+            return datetime.fromisoformat(value)
+
+    def serialize(self, value: datetime) -> str:
+        if value:
+            return value.isoformat()
+
+
+class TimedeltaField(Field):
+    def parse(self, value: int):
+        if value:
+            return timedelta(seconds=value)
+
+    def serialize(self, value: timedelta) -> int:
+        if value:
+            return value.total_seconds()
+
+
+class ColumnEnum(Enum):
+    """
+    enumeration of fields
+    """
+
+    @property
+    def field(self) -> Field:
+        return self.value
+
+    @property
+    def column_name(self) -> str:
+        return self.field.name
+
+    def __str__(self):
+        return str(self.column_name)
+
+
+class Model:
+    """
+    represents a table in the database. `columns` is an enumeration of `Field`s
+    """
+    table: str
+
+    class columns(ColumnEnum):
+        ...
+
+    def __init_subclass__(cls):
+        if not issubclass(cls.columns, ColumnEnum):
+            raise TypeError(f"{cls.__name__}.columns must inherit ColumnEntry")
+        for column in cls.columns:
+            if not isinstance(column.field, Field):
+                raise TypeError(f"members of columns must be of type Field: {cls.__name__}.columns.{column.name} is {type(column.field)}")
+
+    def __init__(self, db: Database, **kwargs):
+        self._db = db
+        for column in self.columns:
+            setattr(
+                self,
+                column.name,
+                kwargs.pop(column.name, None),
+            )
+        if kwargs:
+            raise TypeError(f"{kwargs.keys()} are invalid keyword arguments for {self.__class__.__name__}")
+
+    @classmethod
+    def from_row(cls, db: Database, row: sqlite3.Row):
+        attrs = {column.name: column.field.parse(row[column.column_name]) for column in cls.columns}
+        return cls(
+            db,
+            **attrs
+        )
+
+    def save(self):
+        """
+        write the current object to the db, updating fields if self.pk is not None
+        and adding a new row otherwise
+        """
+        if not self.pk:
+            # add a new row
+            attrs = {column.name: getattr(self, column.name) for column in self.columns}
+            attrs.pop("pk")
+            self.add_row(self._db, **attrs)
+        else:
+            # update existing row
+            setters = ", ".join(
+                f"{column.column_name} = ?"
+                for column in self.columns if column.column_name != "id"
+            )
+            values = [
+                column.field.serialize(getattr(self, column.name))
+                for column in self.columns if column.column_name != "id"
+            ]
+            with closing(self._db.cursor()) as cursor:
+                cursor.execute(
+                    f"UPDATE {self.table} SET {setters} WHERE id = ?",
+                    (*values, self.pk)
+                )
+            self._db.commit()
+
+    
+    @classmethod
+    def select_all_query(cls) -> str:
+        return f"SELECT {', '.join(str(column) for column in cls.columns)} FROM {cls.table}"
+
+    @classmethod
+    def add_row(cls, db: Database, **kwargs):
+        """insert a new row into the table. takes values for columns as keyword arguments"""
+        with closing(db.cursor()) as cursor:
+            cursor.execute(
+                f"""INSERT INTO {cls.table} (
+                    {', '.join(str(col) for col in cls.columns)}
+                ) VALUES ({', '.join('?' for _ in range(len(cls.columns)))})
+                """,
+                tuple(col.value.serialize(kwargs.get(col.name)) for col in cls.columns)
+            )
+        db.commit()
+
+    @classmethod
+    def get_last_row(cls, db: Database) -> Self:
+        """
+        return the last entry (highest ID)
+        """
+        with closing(db.cursor()) as cursor:
+            row = cursor.execute(
+                f"{cls.select_all_query()} WHERE id=(SELECT MAX(id) FROM {cls.table})"
+            ).fetchone()
+        return cls.from_row(db, row)
+
+    @classmethod
+    def get_row(cls, db: Database, id: int) -> Self:
+        with closing(db.cursor()) as cursor:
+            row = cursor.execute(
+                f"{cls.select_all_query()} WHERE id = ?",
+                (id,)
+            ).fetchone()
+        if not row:
+            raise KeyError(f"no entry with ID {id}")
+        return cls.from_row(db, row)
 
 
 # constants of table and column names
-class Rides:
-    name = "rides"
+class Ride(Model):
+    table = "rides"
 
-    class columns:
-        distance = "distance_km"
-        timestamp = "timestamp"
-        duration = "duration_s"
-        comment = "comment"
-        segments = "segments"
-        gpx = "gpx"
+    class columns(ColumnEnum):
+        pk = Field("id", display_name="ID")
+        distance = Field("distance_km", display_name="Distance (km)")
+        timestamp = DatetimeField("timestamp", display_name="Date")
+        duration = TimedeltaField("duration_s", display_name="Duration (hh:mm:ss)")
+        comment = Field("comment", display_name="Comment")
+        segments = Field("segments", display_name="Segments")
+        gpx = Field("gpx", display_name="GPX")
 
-    SELECT_ALL = (
-        f"SELECT id, {columns.timestamp}, {columns.distance}, {columns.duration}, "
-        f"{columns.distance} / {columns.duration} * 3600 AS speed, {columns.comment}, {columns.segments}, "
-        f"CASE WHEN {columns.gpx} IS NULL THEN 0 ELSE 1 END AS has_gpx "
-        f"FROM {name}"
-    )
+    @property
+    def has_gpx(self) -> bool:
+        return bool(self.gpx)
+
+    @property
+    def speed(self) -> int:
+        if self.distance and self.duration:
+            return self.distance / self.duration.total_seconds() * 3600
+
+    @classmethod
+    def get_latest_entries(cls, db: Database, n: int) -> list[Self]:
+        """
+        return the latest n entries (by timestamp)
+        """
+        with closing(db.cursor()) as cursor:
+            rows = cursor.execute(
+                f"{cls.select_all_query()} ORDER BY {cls.columns.timestamp} DESC LIMIT ?",
+                (n,)
+            ).fetchall()
+        return [cls(row) for row in rows]
 
 
 class Alias:
@@ -138,125 +321,11 @@ def get_aliases(connection: sqlite3.Connection) -> list[sqlite3.Row]:
         ).fetchall()
 
 
-def add_entry(
-    connection: sqlite3.Connection,
-    distance: float,
-    timestamp: datetime,
-    duration: timedelta,
-    comment: str,
-    segments: int,
-    gpx: str,
-):
-    with closing(connection.cursor()) as cursor:
-        cursor.execute(
-            f"""INSERT INTO {Rides.name} (
-                {Rides.columns.distance},
-                {Rides.columns.timestamp},
-                {Rides.columns.duration},
-                {Rides.columns.comment},
-                {Rides.columns.segments},
-                {Rides.columns.gpx}
-            ) VALUES (?, ?, ?, ?, ?, ?)""",
-            (
-                distance,
-                timestamp.isoformat(),
-                _to_seconds(duration),
-                comment,
-                segments,
-                gpx
-            )
-        )
-    connection.commit()
-
-
-def amend(
-    connection: sqlite3.Connection,
-    id: int,
-    distance: float,
-    timestamp: datetime,
-    duration: timedelta,
-    comment: str,
-    segments: int,
-    gpx: str,
-):
-    """
-    change the latest entry with the given values
-    """
-    setters = []
-    values = []
-    # build setters and values such that they can be safely inserted into cursor.execute
-    if distance:
-        setters.append(f"{Rides.columns.distance} = ?")
-        values.append(distance)
-    if timestamp:
-        setters.append(f"{Rides.columns.timestamp} = ?")
-        values.append(timestamp.isoformat())
-    if duration:
-        setters.append(f"{Rides.columns.duration} = ?")
-        values.append(_to_seconds(duration))
-    if comment is not None:
-        # might be empty string
-        setters.append(f"{Rides.columns.comment} = ?")
-        values.append(comment)
-    if segments:
-        setters.append(f"{Rides.columns.segments} = ?")
-        values.append(segments)
-    if gpx:
-        setters.append(f"{Rides.columns.gpx} = ?")
-        values.append(gpx)
-    if id is not None:
-        where_clause = "id = ?"
-        values.append(id)
-    else:
-        where_clause = f"id = (SELECT MAX(id) FROM {Rides.name})"
-    command = f"""
-        UPDATE {Rides.name} SET {', '.join(setters)}
-        WHERE {where_clause}
-    """
-    with closing(connection.cursor()) as cursor:
-        cursor.execute(command, tuple(values))
-    connection.commit()
-
-
-def get_last_entry(connection: sqlite3.Connection, model: Type=Rides) -> sqlite3.Row:
-    """
-    return the last entry (highest ID)
-    """
-    connection.row_factory = sqlite3.Row
-    with closing(connection.cursor()) as cursor:
-        return cursor.execute(
-            f"{model.SELECT_ALL} WHERE id=(SELECT MAX(id) FROM {model.name})"
-        ).fetchone()
-
-
-def get_entry(connection: sqlite3.Connection, id: int) -> sqlite3.Row:
-    connection.row_factory = sqlite3.Row
-    with closing(connection.cursor()) as cursor:
-        row = cursor.execute(
-            f"{Rides.SELECT_ALL} WHERE id = ?",
-            (id,)
-        ).fetchone()
-    if not row:
-        raise KeyError(f"no entry with ID {id}")
-    return row
-
-
-def get_latest_entries(connection: sqlite3.Connection, n: int) -> list[sqlite3.Row]:
-    """
-    return the latest n entries (by timestamp)
-    """
-    connection.row_factory = sqlite3.Row
-    with closing(connection.cursor()) as cursor:
-        return cursor.execute(
-            f"{Rides.SELECT_ALL} ORDER BY {Rides.columns.timestamp} DESC LIMIT ?",
-            (n,)
-        ).fetchall()
-
 
 def get_gpx(connection: sqlite3.Connection, id: int) -> str | None:
     with closing(connection.cursor()) as cursor:
         row = cursor.execute(
-            f"SELECT {Rides.columns.gpx} FROM {Rides.name} WHERE id = ?", (id,)
+            f"SELECT {Ride.columns.gpx} FROM {Ride.table} WHERE id = ?", (id,)
         ).fetchone()
         if row:
             return row[0]
@@ -264,15 +333,15 @@ def get_gpx(connection: sqlite3.Connection, id: int) -> str | None:
 
 def get_total_distance(connection: sqlite3.Connection) -> float:
     with closing(connection.cursor()) as cursor:
-        return cursor.execute(f"SELECT SUM({Rides.columns.distance}) FROM {Rides.name}").fetchone()[0]
+        return cursor.execute(f"SELECT SUM({Ride.columns.distance}) FROM {Ride.table}").fetchone()[0]
 
 
 def get_max_distance_entry(connection: sqlite3.Connection) -> tuple[int, str]:
     """get the maximum distance of a single ride with timestamp"""
     with closing(connection.cursor()) as cursor:
         return cursor.execute(
-            f"SELECT MAX({Rides.columns.distance} / {Rides.columns.segments}) AS {Rides.columns.distance}, {Rides.columns.timestamp} "
-            f"FROM {Rides.name}"
+            f"SELECT MAX({Ride.columns.distance} / {Ride.columns.segments}) AS {Ride.columns.distance}, {Ride.columns.timestamp} "
+            f"FROM {Ride.table}"
         ).fetchone()
 
 
@@ -282,8 +351,8 @@ def get_max_distance_by_day(connection: sqlite3.Connection) -> tuple[int, str]:
         return cursor.execute(f"""
             SELECT MAX(daily_distance), day
             FROM (
-                SELECT DATE({Rides.columns.timestamp}) as day, SUM({Rides.columns.distance}) as daily_distance
-                FROM {Rides.name}
+                SELECT DATE({Ride.columns.timestamp}) as day, SUM({Ride.columns.distance}) as daily_distance
+                FROM {Ride.table}
                 GROUP BY day
             )
         """).fetchone()
@@ -293,8 +362,8 @@ def get_max_speed_entry(connection: sqlite3.Connection) -> tuple[int, str]:
     """return the maximum speed with timestamp"""
     with closing(connection.cursor()) as cursor:
         return cursor.execute(
-            f"SELECT MAX({Rides.columns.distance} / {Rides.columns.duration} * 3600) as speed, {Rides.columns.timestamp} "
-            f"FROM {Rides.name} WHERE {Rides.columns.duration} IS NOT NULL"
+            f"SELECT MAX({Ride.columns.distance} / {Ride.columns.duration} * 3600) as speed, {Ride.columns.timestamp} "
+            f"FROM {Ride.table} WHERE {Ride.columns.duration} IS NOT NULL"
         ).fetchone()
 
 
@@ -302,8 +371,8 @@ def get_average_speed(connection: sqlite3.Connection) -> float:
     """return the average speed of all entries with a duration in km/h"""
     with closing(connection.cursor()) as cursor:
         s_km, t_s = cursor.execute(
-            f"SELECT SUM({Rides.columns.distance}), SUM({Rides.columns.duration}) "
-            F"FROM {Rides.name} WHERE {Rides.columns.duration} IS NOT NULL"
+            f"SELECT SUM({Ride.columns.distance}), SUM({Ride.columns.duration}) "
+            F"FROM {Ride.table} WHERE {Ride.columns.duration} IS NOT NULL"
         ).fetchone()
     if t_s is None:
         raise ValueError("no entries in database")
@@ -312,11 +381,11 @@ def get_average_speed(connection: sqlite3.Connection) -> float:
 
 def get_total_rides(connection: sqlite3.Connection) -> int:
     with closing(connection.cursor()) as cursor:
-        return cursor.execute(f"SELECT SUM({Rides.columns.segments}) FROM {Rides.name}").fetchone()[0]
+        return cursor.execute(f"SELECT SUM({Ride.columns.segments}) FROM {Ride.table}").fetchone()[0]
 
 
 def get_timestamps(connection: sqlite3.Connection) -> list:
     with closing(connection.cursor()) as cursor:
         return cursor.execute(
-            f"SELECT {Rides.columns.timestamp} FROM {Rides.name} ORDER BY {Rides.columns.timestamp} DESC"
+            f"SELECT {Ride.columns.timestamp} FROM {Ride.table} ORDER BY {Ride.columns.timestamp} DESC"
         ).fetchall()

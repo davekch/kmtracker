@@ -1,61 +1,49 @@
 from datetime import datetime, timedelta
 import pytest
-import sqlite3
 
 from kmtracker import db
 
 
 @pytest.fixture
-def connection():
-    conn = sqlite3.connect(":memory:")
+def database():
+    _db = db.Database(":memory:")
     try:
-        db.migrate(conn)
-        yield conn
+        db.migrate(_db.connection)
+        yield _db
     finally:
-        conn.close()
+        _db.close()
 
 
-def test_add(connection):
-    db.add_entry(
-        connection=connection,
+def test_add(database):
+    ride = db.Ride(
+        database,
         distance=12,
         timestamp=datetime(2025, 8, 11, 10),
         duration=timedelta(minutes=37),
         comment="test",
         segments=1,
-        gpx=""
     )
-    row = db.get_last_entry(connection)
-    assert row["timestamp"] == datetime(2025, 8, 11, 10).isoformat()
-    assert row["distance_km"] == 12
-    assert row["duration_s"] == 37*60
-    assert row["comment"] == "test"
-    assert row["segments"] == 1
+    ride.save()
+    fetched_ride = db.Ride.get_last_row(database)
+    assert ride.timestamp == datetime(2025, 8, 11, 10) == fetched_ride.timestamp
+    assert ride.distance == 12 == fetched_ride.distance
+    assert ride.duration == timedelta(minutes=37) == fetched_ride.duration
+    assert ride.comment == "test" == fetched_ride.comment
+    assert ride.segments == 1 == fetched_ride.segments
+    assert ride.gpx == None == fetched_ride.gpx
 
 
-def test_amend(connection):
-    db.add_entry(
-        connection=connection,
+def test_update(database):
+    ride = db.Ride(
+        database,
         distance=12,
         timestamp=datetime(2025, 8, 11, 10),
         duration=timedelta(minutes=37),
         comment="test",
         segments=1,
-        gpx=""
     )
-    db.amend(
-        connection=connection,
-        id=1,
-        distance=12.5,  # <- only change one col
-        timestamp=None,
-        duration=None,
-        comment=None,
-        segments=None,
-        gpx=None,
-    )
-    row = db.get_last_entry(connection)
-    assert row["timestamp"] == datetime(2025, 8, 11, 10).isoformat()
-    assert row["distance_km"] == 12.5 # <- this alone should be changed
-    assert row["duration_s"] == 37*60
-    assert row["comment"] == "test"
-    assert row["segments"] == 1
+    ride.save()
+    ride.distance = 12.5
+    ride.save()
+    fetched_ride = db.Ride.get_last_row(database)
+    assert ride.distance == fetched_ride.distance == 12.5
