@@ -2,83 +2,96 @@ import argparse
 import dateutil
 import sys
 from configparser import ConfigParser
+from contextlib import closing
 from datetime import datetime, timedelta
 import dateutil.parser
 from pathlib import Path
 
-from kmtracker import db
+from kmtracker.db import Database, Ride, Alias
 from kmtracker import pretty
 from kmtracker import (
     get_config,
     get_db_path,
-    add,
-    amend,
-    add_alias,
-    get_aliases,
-    from_gpx,
-    get_latest,
-    get_entry,
-    get_summary,
-    get_streaks,
+    get_database,
 )
 
 
-def cli_add(config: ConfigParser, args: argparse.Namespace):
-    parsed_args = convert_common_flags(args)
-    new = add(config, **parsed_args)
+def cli_add(database: Database, args: argparse.Namespace):
+    # see if the first argument could be an alias
+    try:
+        float(args.distance)
+        default_values = {}  # no use of alias, so we don't have any default values
+    except ValueError:
+        alias_name = args.distance
+        try:
+            alias = Alias.get_by_name(database, alias_name)
+        except KeyError:
+            raise ValueError(f"could not parse first argument into float or alias: {args.distance}")
+        args.distance = None
+        default_values = {
+            k: getattr(alias, k) for k in ["distance", "duration", "comment", "segments"]
+        }
+    parsed_args = default_values | convert_common_flags(args)
+    new = Ride(database, **parsed_args)
+    new.save()
     pretty.console.print("Success!✨ ", style="green bold", end="")
     pretty.console.print("Added a new ride:")
-    pretty.print_rows([new])
-    streaks = get_streaks(config)
+    pretty.print_rides([new])
+    streaks = Ride.get_streaks(database)
     if (today := datetime.today().date()) in streaks:
         pretty.console.print(f"🚴[bold green]You're on a streak![/bold green] {streaks[today]} days in a row")
 
 
-def cli_amend(config: ConfigParser, args: argparse.Namespace):
+def cli_amend(database: Database, args: argparse.Namespace):
     parsed_args = convert_common_flags(args, auto_timestamp=False)
-    new = amend(config, id=args.id, **parsed_args)
     if args.id is None:
         pretty.console.print("Changed the latest entry:")
+        ride = Ride.get_last_row(database)
     else:
         pretty.console.print(f"Changed entry with ID {args.id}:")
-    pretty.print_rows([new])
+        ride = Ride.get_row(args.id)
+    for field, value in parsed_args.items():
+        setattr(ride, field, value)
+    ride.save()
+    pretty.print_rides([ride])
 
 
-def cli_alias_add(config: ConfigParser, args: argparse.Namespace):
+def cli_alias_add(db: Database, args: argparse.Namespace):
     parsed_args = convert_common_flags(args, auto_timestamp=False)
-    new = add_alias(config, args.name, **parsed_args)
+    new = Alias(db, name=args.name, **parsed_args)
+    new.save()
     pretty.console.print(f"Added a new alias with name {args.name}:")
-    pretty.print_rows([new])
+    pretty.print_aliases([new])
 
 
-def cli_alias_ls(config: ConfigParser, args: argparse.Namespace):
-    aliases = get_aliases(config)
-    pretty.print_rows(aliases)
+def cli_alias_ls(db: Database, args: argparse.Namespace):
+    aliases = Alias.get_all(db)
+    pretty.print_aliases(aliases)
 
 
-def cli_loadgpx(config: ConfigParser, args: argparse.Namespace):
+def cli_loadgpx(db: Database, args: argparse.Namespace):
     gpx_path = Path(args.path)
     if not gpx_path.exists():
         print(f"file not found: {args.path}")
-    new = from_gpx(config, gpx_path)
-    pretty.print_rows(new)
-    streaks = get_streaks(config)
+    new = Ride.from_gpx(db, gpx_path)
+    pretty.print_rides(new)
+    streaks = Ride.get_streaks(db)
     if (today := datetime.today().date()) in streaks:
         pretty.console.print(f"🚴[bold green]You're on a streak![/bold green] {streaks[today]} days in a row")
 
 
-def cli_ls(config: ConfigParser, args: argparse.Namespace):
-    latest = get_latest(config, args.n)
-    pretty.print_rows(latest)
+def cli_ls(db: Database, args: argparse.Namespace):
+    latest = Ride.get_latest_entries(db, args.n)
+    pretty.print_rides(latest)
 
 
-def cli_show(config: ConfigParser, args: argparse.Namespace):
-    entry, gpx_data = get_entry(config, args.id)
-    pretty.print_entry(entry, gpx_data)
+def cli_show(db: Database, args: argparse.Namespace):
+    ride = Ride.get_row(db, args.id)
+    pretty.print_entry(ride)
 
 
-def cli_stats(config: ConfigParser, args: argparse.Namespace):
-    summary = get_summary(config)
+def cli_stats(db: Database, args: argparse.Namespace):
+    summary = Ride.get_summary(db)
     pretty.print_summary(summary)
 
 
@@ -88,11 +101,11 @@ def get_args() -> argparse.Namespace:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     add = subparsers.add_parser("add", help="add a new ride")
-    add.add_argument("distance", help="distance in km")
+    add.add_argument("distance", help="distance in km or name of alias")
     add.add_argument("-t", "--timestamp", help="datetime of the ride")
     add.add_argument("-d", "--duration", help="duration of the ride")
     add.add_argument("-c", "--comment")
-    add.add_argument("-s", "--segments", help="split this ride into n segments")
+    add.add_argument("-s", "--segments", help="split this ride into n segments", type=int, default=1)
     add.add_argument("-g", "--gpx", help="add gpx file")
     add.set_defaults(func=cli_add)
 
@@ -113,7 +126,7 @@ def get_args() -> argparse.Namespace:
     alias_add.add_argument("-k", "--distance", help="default value for distance in km")
     alias_add.add_argument("-d", "--duration", help="default value for duration of the ride")
     alias_add.add_argument("-c", "--comment", help="default value for comment")
-    alias_add.add_argument("-s", "--segments", help="default value for number of segments")
+    alias_add.add_argument("-s", "--segments", help="default value for number of segments", type=int, default=1)
     alias_add.set_defaults(func=cli_alias_add)
     alias_ls = alias_subparsers.add_parser("ls", help="list all aliases")
     alias_ls.set_defaults(func=cli_alias_ls)
@@ -173,17 +186,14 @@ def convert_common_flags(args: argparse.Namespace, auto_timestamp=True) -> dict:
     if hasattr(args, "comment") and args.comment is not None:
         parsed["comment"] = args.comment
     if hasattr(args, "segments") and args.segments:
-        try:
-            parsed["segments"] = int(args.segments)
-        except ValueError:
-            print(f"invalid int value for argument segments: {args.segments!r}")
-            sys.exit(1)
+        parsed["segments"] = args.segments
     if hasattr(args, "gpx") and args.gpx:
         gpxpath = Path(args.gpx)
         if not gpxpath.exists():
             print(f"file not found: {args.gpx}")
             sys.exit(1)
-        parsed["gpx_path"] = gpxpath
+        with open(gpxpath) as f:
+            parsed["gpx"] = f.read()
     return parsed
 
 
@@ -196,15 +206,14 @@ def main():
         config = get_config()
     db_path = get_db_path(config)
 
-    if not db_path.exists():
-        with db.get_db_connection(db_path) as connection:
-            db.migrate(connection)
-        print(f"created a new DB at {db_path}")
-    else:
-        with db.get_db_connection(db_path) as connection:
-            db.migrate(connection)
+    with closing(get_database(config)) as database:
+        if not db_path.exists():
+            database.migrate()
+            print(f"created a new DB at {db_path}")
+        else:
+            database.migrate()
 
-    args.func(config, args)
+        args.func(database, args)
 
 
 if __name__ == "__main__":
