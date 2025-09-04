@@ -45,3 +45,4 @@ def test_amend(setup):
     )
     ride = db.Ride.get_last_row(_db)
     assert ride.segments == 2
+    assert ride.distance == 78

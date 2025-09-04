@@ -15,9 +15,7 @@ from kmtracker import (
     get_database,
     add_alias,
     get_aliases,
-    from_gpx,
-    get_latest,
-    get_entry,
+    get_alias_by_name,
 )
 
 
@@ -51,37 +49,37 @@ def cli_alias_add(config: ConfigParser, args: argparse.Namespace):
     parsed_args = convert_common_flags(args, auto_timestamp=False)
     new = add_alias(config, args.name, **parsed_args)
     pretty.console.print(f"Added a new alias with name {args.name}:")
-    pretty.print_rows([new])
+    pretty.print_rides([new])
 
 
 def cli_alias_ls(config: ConfigParser, args: argparse.Namespace):
     aliases = get_aliases(config)
-    pretty.print_rows(aliases)
+    pretty.print_rides(aliases)
 
 
-def cli_loadgpx(config: ConfigParser, args: argparse.Namespace):
+def cli_loadgpx(db: Database, args: argparse.Namespace):
     gpx_path = Path(args.path)
     if not gpx_path.exists():
         print(f"file not found: {args.path}")
-    new = from_gpx(config, gpx_path)
-    pretty.print_rows(new)
-    streaks = get_streaks(config)
+    new = Ride.from_gpx(db, gpx_path)
+    pretty.print_rides(new)
+    streaks = Ride.get_streaks(db)
     if (today := datetime.today().date()) in streaks:
         pretty.console.print(f"🚴[bold green]You're on a streak![/bold green] {streaks[today]} days in a row")
 
 
-def cli_ls(config: ConfigParser, args: argparse.Namespace):
-    latest = get_latest(config, args.n)
-    pretty.print_rows(latest)
+def cli_ls(db: Database, args: argparse.Namespace):
+    latest = Ride.get_latest_entries(db, args.n)
+    pretty.print_rides(latest)
 
 
-def cli_show(config: ConfigParser, args: argparse.Namespace):
-    entry, gpx_data = get_entry(config, args.id)
-    pretty.print_entry(entry, gpx_data)
+def cli_show(db: Database, args: argparse.Namespace):
+    ride = Ride.get_row(db, args.id)
+    pretty.print_entry(ride)
 
 
-def cli_stats(config: ConfigParser, args: argparse.Namespace):
-    summary = get_summary(config)
+def cli_stats(db: Database, args: argparse.Namespace):
+    summary = Ride.get_summary(db)
     pretty.print_summary(summary)
 
 
@@ -91,11 +89,11 @@ def get_args() -> argparse.Namespace:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     add = subparsers.add_parser("add", help="add a new ride")
-    add.add_argument("distance", help="distance in km")
+    add.add_argument("distance", help="distance in km or name of alias")
     add.add_argument("-t", "--timestamp", help="datetime of the ride")
     add.add_argument("-d", "--duration", help="duration of the ride")
     add.add_argument("-c", "--comment")
-    add.add_argument("-s", "--segments", help="split this ride into n segments")
+    add.add_argument("-s", "--segments", help="split this ride into n segments", type=int, default=1)
     add.add_argument("-g", "--gpx", help="add gpx file")
     add.set_defaults(func=cli_add)
 
@@ -176,11 +174,7 @@ def convert_common_flags(args: argparse.Namespace, auto_timestamp=True) -> dict:
     if hasattr(args, "comment") and args.comment is not None:
         parsed["comment"] = args.comment
     if hasattr(args, "segments") and args.segments:
-        try:
-            parsed["segments"] = int(args.segments)
-        except ValueError:
-            print(f"invalid int value for argument segments: {args.segments!r}")
-            sys.exit(1)
+        parsed["segments"] = args.segments
     if hasattr(args, "gpx") and args.gpx:
         gpxpath = Path(args.gpx)
         if not gpxpath.exists():

@@ -5,6 +5,7 @@ from collections import Counter
 from datetime import datetime
 from datetime import timedelta
 from enum import Enum
+import gpxpy
 import glob
 import importlib
 from typing import Self
@@ -153,6 +154,8 @@ class Model:
             attrs = {column.name: getattr(self, column.name) for column in self.columns}
             attrs.pop("pk")
             self.add_row(self._db, **attrs)
+            new = self.get_last_row(self._db) # get the row we just created
+            self.pk = new.pk
         else:
             # update existing row
             setters = ", ".join(
@@ -184,7 +187,7 @@ class Model:
                     {', '.join(str(col) for col in cls.columns)}
                 ) VALUES ({', '.join('?' for _ in range(len(cls.columns)))})
                 """,
-                tuple(col.value.serialize(kwargs.get(col.name)) for col in cls.columns)
+                tuple(col.field.serialize(kwargs.get(col.name)) for col in cls.columns)
             )
         db.commit()
 
@@ -243,7 +246,7 @@ class Ride(Model):
                 f"{cls.select_all_query()} ORDER BY {cls.columns.timestamp} DESC LIMIT ?",
                 (n,)
             ).fetchall()
-        return [cls(row) for row in rows]
+        return [cls.from_row(db, row) for row in rows]
 
     @classmethod
     def get_total_distance(cls, db: Database) -> float:
@@ -354,6 +357,30 @@ class Ride(Model):
             "longest_streaks": longest_streaks,
         }
 
+    @classmethod
+    def from_gpx(cls, db: Database, gpx_path: Path) -> list[Self]:
+        """
+        read and parse gpx_path and create new entries from its contents
+        """
+        with open(gpx_path) as f:
+            raw_gpx = f.read()
+            gpx = gpxpy.parse(raw_gpx)
+        new = []
+        for track in gpx.tracks:
+            moving_data = track.get_moving_data()
+            time_bounds = track.get_time_bounds()
+            ride = cls(
+                db=db,
+                distance=moving_data.moving_distance / 1000,
+                timestamp=time_bounds.start_time,
+                duration=timedelta(seconds=moving_data.moving_time),
+                comment=track.name,
+                segments=len(track.segments),
+                gpx=raw_gpx,
+            )
+            ride.save()
+            new.append(ride)
+        return new
 
 class Alias:
     """
@@ -380,10 +407,6 @@ class Migrations:
     class columns:
         name = "name"
         timestamp = "timestamp"
-
-
-def get_db_connection(path: Path):
-    return closing(sqlite3.connect(path))
 
 
 def _to_seconds(duration: timedelta) -> int:

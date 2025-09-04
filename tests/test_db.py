@@ -47,6 +47,7 @@ def test_update(database):
     ride.save()
     fetched_ride = db.Ride.get_last_row(database)
     assert ride.distance == fetched_ride.distance == 12.5
+    assert ride.comment == fetched_ride.comment == "test"
 
 
 def test_total_distance(database):
