@@ -17,9 +17,23 @@ from kmtracker import (
 
 
 def cli_add(database: Database, args: argparse.Namespace):
-    parsed_args = convert_common_flags(args)
-    Ride(database, **parsed_args).save()
-    new = Ride.get_last_row(database)
+    # see if the first argument could be an alias
+    try:
+        float(args.distance)
+        default_values = {}  # no use of alias, so we don't have any default values
+    except ValueError:
+        alias_name = args.distance
+        try:
+            alias = Alias.get_by_name(database, alias_name)
+        except KeyError:
+            raise ValueError(f"could not parse first argument into float or alias: {args.distance}")
+        args.distance = None
+        default_values = {
+            k: getattr(alias, k) for k in ["distance", "duration", "comment", "segments"]
+        }
+    parsed_args = default_values | convert_common_flags(args)
+    new = Ride(database, **parsed_args)
+    new.save()
     pretty.console.print("Success!✨ ", style="green bold", end="")
     pretty.console.print("Added a new ride:")
     pretty.print_rides([new])

@@ -1,8 +1,7 @@
 import pytest
 import subprocess
-from datetime import datetime
+from datetime import datetime, timedelta
 
-import kmtracker
 from kmtracker import db
 
 
@@ -51,14 +50,14 @@ def test_amend(setup):
 def test_alias_add(setup):
     _db, command = setup
     output = subprocess.check_output(
-        command + ["alias", "add", "test", "-k", "34.2", "-s", "2"]
+        command + ["alias", "add", "test", "-k", "34.2", "-s", "2", "-d", "1:21"]
     ).decode("utf-8")
     assert "new alias" in output
     alias = db.Alias.get_last_row(_db)
     assert alias.name == "test"
     assert alias.distance == 34.2
     assert alias.segments == 2
-    assert alias.duration is None
+    assert alias.duration == timedelta(hours=1, minutes=21)
 
 
 def test_alias_ls(setup):
@@ -70,3 +69,28 @@ def test_alias_ls(setup):
     ).decode("utf-8")
     assert "test" in output
     assert "12.3" in output
+
+
+def test_add_with_alias(setup):
+    _db, command = setup
+    alias = db.Alias(_db, name="test", distance=12.3, duration=timedelta(minutes=31))
+    alias.save()
+    # first test adding a ride by referencing the alias
+    output = subprocess.check_output(
+        command + ["add", "test"]
+    ).decode("utf-8")
+    assert "Success" in output
+    ride = db.Ride.get_last_row(_db)
+    assert ride.distance == 12.3
+    assert ride.duration == timedelta(minutes=31)
+    assert ride.comment is None
+    assert ride.segments == 1
+
+    # now test again but override some values
+    subprocess.call(
+        command + ["add", "test", "-d", "0:35", "-c", "test"]
+    )
+    ride = db.Ride.get_last_row(_db)
+    assert ride.distance == 12.3
+    assert ride.duration == timedelta(minutes=35)
+    assert ride.comment == "test"
