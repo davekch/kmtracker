@@ -18,15 +18,15 @@ def setup(tmp_path):
     try:
         _db = db.Database(tmp_path / "test.sqlite3")
         _db.migrate()
-        yield path, _db
+        yield _db, ["kmtracker", "-f", str(path)]
     finally:
         _db.close()
 
 
 def test_add(setup):
-    config_path, _db = setup
+    _db, command = setup
     output = subprocess.check_output(
-        ["kmtracker", "-f", str(config_path), "add", "6.8", "-c", "test"]
+        command + ["add", "6.8", "-c", "test"]
     ).decode("utf-8")
     assert "Success" in output
     assert "6.8" in output
@@ -37,12 +37,36 @@ def test_add(setup):
 
 
 def test_amend(setup):
-    config_path, _db = setup
+    _db, command = setup
     # populate the db
     db.Ride(_db, distance=78, timestamp=datetime(2025, 8, 23)).save()
     subprocess.call(
-        ["kmtracker", "-f", str(config_path), "amend", "-s", "2"]
+        command + ["amend", "-s", "2"]
     )
     ride = db.Ride.get_last_row(_db)
     assert ride.segments == 2
     assert ride.distance == 78
+
+
+def test_alias_add(setup):
+    _db, command = setup
+    output = subprocess.check_output(
+        command + ["alias", "add", "test", "-k", "34.2", "-s", "2"]
+    ).decode("utf-8")
+    assert "new alias" in output
+    alias = db.Alias.get_last_row(_db)
+    assert alias.name == "test"
+    assert alias.distance == 34.2
+    assert alias.segments == 2
+    assert alias.duration is None
+
+
+def test_alias_ls(setup):
+    _db, command = setup
+    alias = db.Alias(_db, name="test", distance=12.3)
+    alias.save()
+    output = subprocess.check_output(
+        command + ["alias", "ls"]
+    ).decode("utf-8")
+    assert "test" in output
+    assert "12.3" in output
