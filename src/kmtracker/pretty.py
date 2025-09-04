@@ -5,63 +5,45 @@ from datetime import timedelta
 import gpxpy
 from functools import wraps
 
-from kmtracker.db import Rides
+from kmtracker.db import Model, Ride
 
 
 console = Console()
 
 
-pretty_field_names = {
-    "id": "ID",
-    Rides.columns.distance: "Distance (km)",
-    Rides.columns.timestamp: "Date",
-    Rides.columns.duration: "Duration (hh:mm:ss)",
-    Rides.columns.segments: "Segments",
-    Rides.columns.comment: "Comment",
-    "speed": "Avg. speed (km/h)",
-    "has_gpx": "GPX",
-    "name": "Name",
-}
-
 
 def _format_duration(duration: timedelta) -> str:
+    if not duration:
+        return ""
     hours, remainder = divmod(duration.seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     return f"{duration.days*24 + hours:02}:{minutes:02}:{seconds:02}"
 
 
-def to_dict(row: sqlite3.Row) -> dict:
-    """
-    convert a row of the rides table to a nicely formatted dict
-    """
-    d = {}
-    for k in row.keys():
-        if k == Rides.columns.timestamp:
-            d[pretty_field_names[k]] = row[k].split("T")[0]  # the date part of isoformat
-        elif k == Rides.columns.duration:
-            if not row[k]:
-                d[pretty_field_names[k]] = ""
-            else:
-                dur = timedelta(seconds=row[k])
-                d[pretty_field_names[k]] = _format_duration(dur)
-        elif isinstance(row[k], float):
-            d[pretty_field_names[k]] = round(row[k], 1)
-        elif k == "has_gpx":
-            d[pretty_field_names[k]] = "✅" if row[k] else "-"
-        else:
-            d[pretty_field_names[k]] = row[k]
-    return d
-
-
-def print_rows(rows: list):
+def print_rides(rows: list[Ride]):
     if not rows:
         print("Nothing to show.")
         return
     table = Table()
-    for col in rows[0].keys():
-        table.add_column(pretty_field_names[col])
-    for row in map(to_dict, rows):
-        table.add_row(*[str(v or "") for v in row.values()])
+    table.add_column(Ride.columns.pk.value.display_name)
+    table.add_column(Ride.columns.timestamp.value.display_name)
+    table.add_column(Ride.columns.distance.value.display_name)
+    table.add_column(Ride.columns.duration.value.display_name)
+    table.add_column("Avg. speed (km/h)")
+    table.add_column(Ride.columns.comment.value.display_name)
+    table.add_column(Ride.columns.segments.value.display_name)
+    table.add_column(Ride.columns.gpx.value.display_name)
+    for row in rows:
+        table.add_row(
+            str(row.pk),
+            row.timestamp.strftime("%Y-%m-%d"),
+            str(round(row.distance, 1)),
+            _format_duration(row.duration),
+            str(round(row.speed, 1)) if row.speed else "",
+            row.comment,
+            str(row.segments),
+            "✅" if row.gpx else "-"
+        )
     console.print(table)
 
 
@@ -83,8 +65,9 @@ def print_summary(summary: dict):
     console.print(f"longest streaks          : {streaks_text}")
 
 
-def print_entry(entry: sqlite3.Row, gpx_data: str):
-    print_rows([entry])
+def print_entry(ride: Ride):
+    print_rides([ride])
+    gpx_data = ride.gpx
     if gpx_data:
         gpx = gpxpy.parse(gpx_data)
         moving_data = gpx.get_moving_data()
