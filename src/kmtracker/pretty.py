@@ -5,7 +5,7 @@ from datetime import timedelta
 import gpxpy
 from functools import wraps
 
-from kmtracker.db import Model, Ride
+from kmtracker.db import Ride, Alias
 
 
 console = Console()
@@ -18,6 +18,27 @@ def _format_duration(duration: timedelta) -> str:
     hours, remainder = divmod(duration.seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     return f"{duration.days*24 + hours:02}:{minutes:02}:{seconds:02}"
+
+
+def print_aliases(rows: list[Alias]):
+    if not rows:
+        print("Nothing to show.")
+        return
+    table = Table()
+    table.add_column(Alias.columns.name.field.display_name)
+    table.add_column(Alias.columns.distance.field.display_name)
+    table.add_column(Alias.columns.duration.field.display_name)
+    table.add_column(Alias.columns.comment.field.display_name)
+    table.add_column(Alias.columns.segments.field.display_name)
+    for row in rows:
+        table.add_row(
+            row.name,
+            str(round(row.distance, 1)),
+            _format_duration(row.duration),
+            row.comment,
+            str(row.segments),
+        )
+    console.print(table)
 
 
 def print_rides(rows: list[Ride]):

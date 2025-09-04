@@ -7,15 +7,12 @@ from datetime import datetime, timedelta
 import dateutil.parser
 from pathlib import Path
 
-from kmtracker.db import Database, Ride
+from kmtracker.db import Database, Ride, Alias
 from kmtracker import pretty
 from kmtracker import (
     get_config,
     get_db_path,
     get_database,
-    add_alias,
-    get_aliases,
-    get_alias_by_name,
 )
 
 
@@ -45,16 +42,17 @@ def cli_amend(database: Database, args: argparse.Namespace):
     pretty.print_rides([ride])
 
 
-def cli_alias_add(config: ConfigParser, args: argparse.Namespace):
+def cli_alias_add(db: Database, args: argparse.Namespace):
     parsed_args = convert_common_flags(args, auto_timestamp=False)
-    new = add_alias(config, args.name, **parsed_args)
+    new = Alias(db, name=args.name, **parsed_args)
+    new.save()
     pretty.console.print(f"Added a new alias with name {args.name}:")
-    pretty.print_rides([new])
+    pretty.print_aliases([new])
 
 
-def cli_alias_ls(config: ConfigParser, args: argparse.Namespace):
-    aliases = get_aliases(config)
-    pretty.print_rides(aliases)
+def cli_alias_ls(db: Database, args: argparse.Namespace):
+    aliases = Alias.get_all(db)
+    pretty.print_aliases(aliases)
 
 
 def cli_loadgpx(db: Database, args: argparse.Namespace):
@@ -114,7 +112,7 @@ def get_args() -> argparse.Namespace:
     alias_add.add_argument("-k", "--distance", help="default value for distance in km")
     alias_add.add_argument("-d", "--duration", help="default value for duration of the ride")
     alias_add.add_argument("-c", "--comment", help="default value for comment")
-    alias_add.add_argument("-s", "--segments", help="default value for number of segments")
+    alias_add.add_argument("-s", "--segments", help="default value for number of segments", type=int, default=1)
     alias_add.set_defaults(func=cli_alias_add)
     alias_ls = alias_subparsers.add_parser("ls", help="list all aliases")
     alias_ls.set_defaults(func=cli_alias_ls)

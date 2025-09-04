@@ -1,10 +1,5 @@
 from configparser import ConfigParser
-from contextlib import closing
 from pathlib import Path
-from datetime import datetime, timedelta
-from collections import Counter
-import sqlite3
-import gpxpy
 import os
 
 from kmtracker import db
@@ -35,23 +30,3 @@ def get_db_path(config: ConfigParser) -> Path:
 
 def get_database(config: ConfigParser) -> db.Database:
     return db.Database(get_db_path(config))
-
-
-def add_alias(
-    config: ConfigParser,
-    name: str,
-    distance: float=None,
-    duration: timedelta=None,
-    comment: str="",
-    segments: int=1,
-):
-    with get_db_connection(get_db_path(config)) as connection:
-        db.add_alias(connection, name, distance, duration, comment, segments)
-        new = db.get_last_entry(connection, model=db.Alias)
-    return new
-
-
-def get_aliases(config: ConfigParser) -> list[sqlite3.Row]:
-    with get_db_connection(get_db_path(config)) as connection:
-        aliases = db.get_aliases(connection)
-    return aliases

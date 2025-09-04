@@ -40,7 +40,7 @@ class Database:
             try:
                 migrations_performed = [
                     result[0] for result in
-                    cursor.execute(f"SELECT {Migrations.columns.name} FROM {Migrations.name}").fetchall()
+                    cursor.execute(f"SELECT {Migrations.columns.name} FROM {Migrations.table}").fetchall()
                 ]
             except sqlite3.OperationalError:
                 migrations_performed = []
@@ -54,7 +54,7 @@ class Database:
                 migration.run(cursor)
                 # mark this migration as done
                 cursor.execute(
-                    f"INSERT INTO {Migrations.name} ({Migrations.columns.name}) VALUES (?)",
+                    f"INSERT INTO {Migrations.table} ({Migrations.columns.name}) VALUES (?)",
                     (module,)
                 )
         self.commit()
@@ -382,71 +382,44 @@ class Ride(Model):
             new.append(ride)
         return new
 
-class Alias:
+
+class Alias(Model):
     """
     represents a table of default values for rides
     """
-    name = "aliases"
+    table = "aliases"
     
-    class columns:
-        name = "name"
-        distance = "distance_km"
-        duration = "duration_s"
-        comment = "comment"
-        segments = "segments"
+    class columns(ColumnEnum):
+        pk = Field("id", display_name="ID")
+        name = Field("name", display_name="Name")
+        distance = Field("distance_km", display_name="Distance (km)")
+        duration = TimedeltaField("duration_s", display_name="Duration (hh:mm:ss)")
+        comment = Field("comment", display_name="Comment")
+        segments = Field("segments", display_name="Segments")
 
-    SELECT_ALL = (
-        f"SELECT id, {columns.name}, {columns.distance}, {columns.duration}, "
-        f"{columns.comment}, {columns.segments} FROM {name}"
-    )
+    @classmethod
+    def get_all(cls, db: Database) -> list[Self]:
+        with closing(db.cursor()) as cursor:
+            rows = cursor.execute(
+                f"{cls.select_all_query()} ORDER BY {cls.columns.name} DESC"
+            ).fetchall()
+        return [cls.from_row(db, row) for row in rows]
 
-
-class Migrations:
-    name = "_migrations"
-
-    class columns:
-        name = "name"
-        timestamp = "timestamp"
-
-
-def _to_seconds(duration: timedelta) -> int:
-    if duration is not None:
-        return duration.days * 60 * 60 * 24 + duration.seconds
-    else:
-        return None
-
-
-def add_alias(
-    connection: sqlite3.Connection,
-    name: str,
-    distance: float,
-    duration: timedelta,
-    comment: str,
-    segments: int,
-):
-    with closing(connection.cursor()) as cursor:
-        cursor.execute(
-            f"""INSERT INTO {Alias.name} (
-                {Alias.columns.name},
-                {Alias.columns.distance},
-                {Alias.columns.duration},
-                {Alias.columns.comment},
-                {Alias.columns.segments}
-            ) VALUES (?, ?, ?, ?, ?)""",
-            (
-                name,
-                distance,
-                _to_seconds(duration),
-                comment,
-                segments,
-            )
-        )
-    connection.commit()
+    @classmethod
+    def get_by_name(cls, db: Database, name: str) -> Self:
+        with closing(db.cursor()) as cursor:
+            row = cursor.execute(
+                f"{cls.select_all_query()} WHERE name = ?",
+                (name,)
+            ).fetchone()
+        if not row:
+            raise KeyError(f"no alias with name {name}")
+        return cls.from_row(db, row)
 
 
-def get_aliases(connection: sqlite3.Connection) -> list[sqlite3.Row]:
-    connection.row_factory = sqlite3.Row
-    with closing(connection.cursor()) as cursor:
-        return cursor.execute(
-            f"{Alias.SELECT_ALL} ORDER BY {Alias.columns.name} ASC"
-        ).fetchall()
+class Migrations(Model):
+    table = "_migrations"
+
+    class columns(ColumnEnum):
+        name = Field("name")
+        timestamp = DatetimeField("timestamp")
