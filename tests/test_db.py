@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import pytest
+import sqlite3
 
 from kmtracker import db
 
@@ -54,3 +55,9 @@ def test_total_distance(database):
     db.Ride(database, timestamp=datetime.now(), distance=12).save()
     db.Ride(database, timestamp=datetime.now(), distance=3.4).save()
     assert db.Ride.get_total_distance(database) == 12 + 3.4
+
+
+def test_alias_unique(database):
+    db.Alias(database, name="test", distance=12).save()
+    with pytest.raises(sqlite3.IntegrityError):
+        db.Alias(database, name="test", distance=34).save()

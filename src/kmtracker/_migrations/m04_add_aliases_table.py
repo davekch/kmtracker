@@ -5,7 +5,7 @@ def run(cursor: Cursor):
     cursor.execute(f"""
         CREATE TABLE aliases (
             id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL,
+            name TEXT NOT NULL UNIQUE,
             distance_km REAL,
             duration_s INTEGER CHECK(duration_s > 0),
             comment TEXT,
