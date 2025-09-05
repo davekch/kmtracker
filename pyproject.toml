@@ -1,6 +1,6 @@
 [project]
 name = "kmtracker"
-version = "0.2.0"
+version = "0.3.0"
 description = "dead simple cli tool to track bike rides"
 authors = [
     { name = "davekch", email = "dvkch@proton.me" }
