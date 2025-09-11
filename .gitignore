@@ -1,5 +1,6 @@
 __pycache__
 *.sqlite3
+*.cfg
 
 build/
 kmtracker.egg-info/
