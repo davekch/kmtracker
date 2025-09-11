@@ -173,7 +173,6 @@ class Model:
                 )
             self._db.commit()
 
-    
     @classmethod
     def select_all_query(cls) -> str:
         return f"SELECT {', '.join(str(column) for column in cls.columns)} FROM {cls.table}"
@@ -214,7 +213,6 @@ class Model:
         return cls.from_row(db, row)
 
 
-# constants of table and column names
 class Ride(Model):
     table = "rides"
 
@@ -302,11 +300,12 @@ class Ride(Model):
             return cursor.execute(f"SELECT SUM({cls.columns.segments}) FROM {cls.table}").fetchone()[0]
 
     @classmethod
-    def get_timestamps(cls, db: Database) -> list:
+    def get_timestamps(cls, db: Database) -> list[datetime]:
         with closing(db.cursor()) as cursor:
-            return cursor.execute(
+            stamps = cursor.execute(
                 f"SELECT {cls.columns.timestamp} FROM {cls.table} ORDER BY {cls.columns.timestamp} DESC"
             ).fetchall()
+        return [cls.columns.timestamp.field.parse(s) for s, in stamps]
 
     @classmethod
     def get_streaks(cls, db: Database) -> Counter[datetime]:
@@ -316,8 +315,8 @@ class Ride(Model):
         """
         timestamps = cls.get_timestamps(db)
         dates = []
-        for stamp, in timestamps:
-            date = datetime.fromisoformat(stamp).date()
+        for stamp in timestamps:
+            date = stamp.date()
             if date not in dates:
                 # no duplicates
                 dates.append(date)
