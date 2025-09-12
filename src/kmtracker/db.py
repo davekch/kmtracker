@@ -391,11 +391,14 @@ class Ride(Model):
         streaks = cls.get_streaks(db)
         longest_streaks = streaks.most_common(1)
         return {
-            "distance_tot": d_tot,
-            "distance_max": (d_max, d_max_timestamp),
-            "distance_max_day": (s_max_day, s_max_day_date),
-            "speed_max": (s_max, s_max_timestamp),
-            "speed_mean": s_avg,
+            "distance_tot": round(d_tot, 2),
+            "distance_max": round(d_max, 2),
+            "distance_max_date": d_max_timestamp.split("T")[0],
+            "max_day_distance": round(s_max_day, 2),
+            "max_day_date": s_max_day_date.split("T")[0],
+            "speed_max": round(s_max, 1),
+            "speed_max_date": s_max_timestamp.split("T")[0],
+            "speed_mean": round(s_avg, 1),
             "n_rides": n,
             "longest_streaks": longest_streaks,
         }
