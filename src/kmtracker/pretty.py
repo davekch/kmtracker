@@ -1,4 +1,3 @@
-import sqlite3
 from rich.console import Console
 from rich.table import Table
 from datetime import timedelta
@@ -6,18 +5,10 @@ import gpxpy
 from functools import wraps
 
 from kmtracker.db import Ride, Alias
+from kmtracker import db
 
 
 console = Console()
-
-
-
-def _format_duration(duration: timedelta) -> str:
-    if not duration:
-        return ""
-    hours, remainder = divmod(duration.seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    return f"{duration.days*24 + hours:02}:{minutes:02}:{seconds:02}"
 
 
 def print_aliases(rows: list[Alias]):
@@ -31,12 +22,13 @@ def print_aliases(rows: list[Alias]):
     table.add_column(Alias.columns.comment.field.display_name)
     table.add_column(Alias.columns.segments.field.display_name)
     for row in rows:
+        pretty = row.serialize_pretty()
         table.add_row(
-            row.name,
-            str(round(row.distance, 1)),
-            _format_duration(row.duration),
-            row.comment,
-            str(row.segments),
+            pretty["name"],
+            pretty["distance"],
+            pretty["duration"],
+            pretty["comment"],
+            pretty["segments"],
         )
     console.print(table)
 
@@ -46,24 +38,25 @@ def print_rides(rows: list[Ride]):
         print("Nothing to show.")
         return
     table = Table()
-    table.add_column(Ride.columns.pk.value.display_name)
-    table.add_column(Ride.columns.timestamp.value.display_name)
-    table.add_column(Ride.columns.distance.value.display_name)
-    table.add_column(Ride.columns.duration.value.display_name)
+    table.add_column(Ride.columns.pk.field.display_name)
+    table.add_column(Ride.columns.timestamp.field.display_name)
+    table.add_column(Ride.columns.distance.field.display_name)
+    table.add_column(Ride.columns.duration.field.display_name)
     table.add_column("Avg. speed (km/h)")
-    table.add_column(Ride.columns.comment.value.display_name)
-    table.add_column(Ride.columns.segments.value.display_name)
-    table.add_column(Ride.columns.gpx.value.display_name)
+    table.add_column(Ride.columns.comment.field.display_name)
+    table.add_column(Ride.columns.segments.field.display_name)
+    table.add_column(Ride.columns.gpx.field.display_name)
     for row in rows:
+        pretty = row.serialize_pretty()
         table.add_row(
-            str(row.pk),
-            row.timestamp.strftime("%Y-%m-%d"),
-            str(round(row.distance, 1)),
-            _format_duration(row.duration),
-            str(round(row.speed, 1)) if row.speed else "",
-            row.comment,
-            str(row.segments),
-            "✅" if row.gpx else "-"
+            pretty["pk"],
+            pretty["timestamp"],
+            pretty["distance"],
+            pretty["duration"],
+            db.FloatField.serialize_pretty(row.speed),
+            pretty["comment"],
+            pretty["segments"],
+            "✅" if row.gpx else "-",
         )
     console.print(table)
 
@@ -93,8 +86,8 @@ def print_entry(ride: Ride):
         gpx = gpxpy.parse(gpx_data)
         moving_data = gpx.get_moving_data()
         elevation = gpx.get_uphill_downhill()
-        console.print(f"time in motion         : {_format_duration(timedelta(seconds=moving_data.moving_time))}")
-        console.print(f"time at rest           : {_format_duration(timedelta(seconds=moving_data.stopped_time))}")
+        console.print(f"time in motion         : {db.TimedeltaField.serialize_pretty(timedelta(seconds=moving_data.moving_time))}")
+        console.print(f"time at rest           : {db.TimedeltaField.serialize_pretty(timedelta(seconds=moving_data.stopped_time))}")
         console.print(f"average speed in motion: {round(moving_data.moving_distance / moving_data.moving_time * 3.6, 1)} km/h")
         console.print(f"maximum speed          : {round(moving_data.max_speed * 3.6, 1)} km/h")
         console.print(f"uphill                 : {round(elevation.uphill, 0)} m")

@@ -65,31 +65,63 @@ class Field:
         self.name = column_name
         self.display_name = display_name or column_name
 
-    def parse(self, value):
+    @staticmethod
+    def parse(value):
         return value
 
-    def serialize(self, value):
+    @staticmethod
+    def serialize(value):
         return value
+
+    @staticmethod
+    def serialize_pretty(value) -> str:
+        if value is None:
+            return ""
+        return str(value)
 
 
 class DatetimeField(Field):
-    def parse(self, value: str):
+    @staticmethod
+    def parse(value: str):
         if value:
             return datetime.fromisoformat(value)
 
-    def serialize(self, value: datetime) -> str:
+    @staticmethod
+    def serialize(value: datetime) -> str:
         if value:
             return value.isoformat()
 
+    @staticmethod
+    def serialize_pretty(value: datetime):
+        return value.strftime("%Y-%m-%d")
+
 
 class TimedeltaField(Field):
-    def parse(self, value: int):
+    @staticmethod
+    def parse(value: int):
         if value:
             return timedelta(seconds=value)
 
-    def serialize(self, value: timedelta) -> int:
+    @staticmethod
+    def serialize(value: timedelta) -> int:
         if value:
             return value.total_seconds()
+
+    @staticmethod
+    def serialize_pretty(value: timedelta):
+        if value is None:
+            return ""
+        hours, remainder = divmod(value.seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return f"{value.days*24 + hours:02}:{minutes:02}:{seconds:02}"
+
+
+class FloatField(Field):
+    @staticmethod
+    def serialize_pretty(value):
+        if value is None:
+            return ""
+        return str(round(value, 1))
 
 
 class ColumnEnum(Enum):
@@ -143,6 +175,18 @@ class Model:
             db,
             **attrs
         )
+
+    def serialize(self) -> dict:
+        return {
+            column.name: column.field.serialize(getattr(self, column.name))
+            for column in self.columns
+        }
+
+    def serialize_pretty(self) -> dict:
+        return {
+            column.name: column.field.serialize_pretty(getattr(self, column.name))
+            for column in self.columns
+        }
 
     def save(self):
         """
@@ -218,7 +262,7 @@ class Ride(Model):
 
     class columns(ColumnEnum):
         pk = Field("id", display_name="ID")
-        distance = Field("distance_km", display_name="Distance (km)")
+        distance = FloatField("distance_km", display_name="Distance (km)")
         timestamp = DatetimeField("timestamp", display_name="Date")
         duration = TimedeltaField("duration_s", display_name="Duration (hh:mm:ss)")
         comment = Field("comment", display_name="Comment")
@@ -391,7 +435,7 @@ class Alias(Model):
     class columns(ColumnEnum):
         pk = Field("id", display_name="ID")
         name = Field("name", display_name="Name")
-        distance = Field("distance_km", display_name="Distance (km)")
+        distance = FloatField("distance_km", display_name="Distance (km)")
         duration = TimedeltaField("duration_s", display_name="Duration (hh:mm:ss)")
         comment = Field("comment", display_name="Comment")
         segments = Field("segments", display_name="Segments")
