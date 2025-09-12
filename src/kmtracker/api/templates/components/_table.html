@@ -1,0 +1,11 @@
+<div">
+  <table class="min-w-full divide-y-2 divide-gray-200">
+    {% include "components/_table_head.html" %}
+
+    <tbody class="divide-y divide-gray-200">
+      {% for row in rows %}
+        {% include "components/_table_row.html" %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

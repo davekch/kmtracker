@@ -1,7 +1,7 @@
 import argparse
 import dateutil
 import sys
-from configparser import ConfigParser
+import os
 from contextlib import closing
 from datetime import datetime, timedelta
 import dateutil.parser
@@ -13,6 +13,7 @@ from kmtracker import (
     get_config,
     get_db_path,
     get_database,
+    DEFAULT_CONFIG_PATH,
 )
 
 
@@ -95,9 +96,15 @@ def cli_stats(db: Database, args: argparse.Namespace):
     pretty.print_summary(summary)
 
 
+def cli_runserver(args: argparse.Namespace):
+    import uvicorn
+    os.environ.setdefault("KMTRACKER_CONFIG_PATH", str(args.config))
+    uvicorn.run("kmtracker.api:app", host=args.host, port=args.port, reload=args.dev)
+
+
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--config", help="path to config file", type=Path)
+    parser.add_argument("-f", "--config", help="path to config file", type=Path, default=DEFAULT_CONFIG_PATH)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     add = subparsers.add_parser("add", help="add a new ride")
@@ -145,6 +152,11 @@ def get_args() -> argparse.Namespace:
 
     stats = subparsers.add_parser("stats")
     stats.set_defaults(func=cli_stats)
+
+    runserver = subparsers.add_parser("runserver")
+    runserver.add_argument("--host", default="0.0.0.0")
+    runserver.add_argument("-p", "--port", default=8888, type=int)
+    runserver.add_argument("--dev", action="store_true", default=False)
 
     args = parser.parse_args()
     return args
@@ -213,7 +225,12 @@ def main():
         else:
             database.migrate()
 
-        args.func(database, args)
+        if args.command != "runserver":
+            args.func(database, args)
+    
+    if args.command == "runserver":
+        # continue with db connection closed
+        cli_runserver(args)
 
 
 if __name__ == "__main__":
