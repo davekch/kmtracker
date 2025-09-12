@@ -13,7 +13,9 @@ from typing import Self
 
 class Database:
     def __init__(self, path: str):
-        self.connection = sqlite3.connect(path)
+        # you need to make sure that every command / request gets its own
+        # db connection, then it's fine to have check_same_thread=False
+        self.connection = sqlite3.connect(path, check_same_thread=False)
         self.connection.row_factory = sqlite3.Row
 
     def close(self):
