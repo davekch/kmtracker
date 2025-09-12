@@ -1,5 +1,12 @@
 {% extends "base.html" %}
+{% from "components/macros.html" import card %}
 {% block content %}
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1">
+  {% call card() %}<div hx-get="/stats" hx-trigger="load"></div>{% endcall %}
+  {% call card() %}{% endcall %}
+</div>
+
 
 <div hx-get="/rides" hx-trigger="load"></div>
 

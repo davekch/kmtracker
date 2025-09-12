@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 import os
+from datetime import timedelta, datetime
 
 from kmtracker import get_config, get_database
 from kmtracker.db import Database, Ride, FloatField
@@ -61,4 +62,21 @@ def rides(request: Request, db: Database=Depends(db_connection)):
             ],
             "rows": rides,
         }
+    )
+
+
+@app.get("/stats")
+def stats(request: Request, db: Database=Depends(db_connection)):
+    summary = Ride.get_summary(db)
+    streaks = Ride.get_streaks(db)
+    if (today := datetime.today().date()) in streaks:
+        summary["on_streak"] = True
+        summary["current_streak"] = streaks[today]
+    elif (yesterday := today - timedelta(days=1)) in streaks:
+        summary["keep_up"] = True
+        summary["current_streak"] = streaks[yesterday]
+    return templates.TemplateResponse(
+        request=request,
+        name="components/_stats.html",
+        context=summary,
     )
