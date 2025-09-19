@@ -1,10 +1,10 @@
-from fastapi import FastAPI, Request, Depends, Form
+from fastapi import FastAPI, Request, Depends
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 import os
 from datetime import timedelta, datetime
 from pydantic import BaseModel, Field
-from typing import Annotated
+from typing import Optional
 
 from kmtracker import get_config, get_database
 from kmtracker.db import Database, Ride, FloatField
@@ -27,10 +27,16 @@ def db_connection():
 class RideForm(BaseModel):
     distance: float
     timestamp: datetime = Field(default_factory=datetime.today)
-    duration: timedelta | None = None
-    comment: str = ""
-    segments: int = 1
+    duration: Optional[timedelta] = None
+    comment: Optional[str] = ""
+    segments: Optional[int] = 1
 
+
+async def clean_rideform(request: Request) -> RideForm:
+    form = await request.form()                     # async — run on event loop
+    # drop empty-string values so Pydantic will apply defaults for missing fields
+    cleaned = {k: v for k, v in dict(form).items() if v != ""}
+    return RideForm(**cleaned)
 
 @app.get("/")
 def index(request: Request):
@@ -76,13 +82,14 @@ def rides_new_show_form(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="components/_form_ride.html",
+        context=RideForm(distance=0).model_dump(mode="json"),
     )
 
 
 @app.post("/rides/new")
 def rides_new_submit_form(
     request: Request,
-    form: Annotated[RideForm, Form()],
+    form: RideForm=Depends(clean_rideform),
     db: Database=Depends(db_connection),
 ):
     ride = Ride(db, **form.model_dump())

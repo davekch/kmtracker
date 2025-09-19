@@ -27,7 +27,7 @@
       type="number"
       name="segments"
       id="segments"
-      value="1"
+      value="{{ segments }}"
       min="1"
       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
     />
@@ -40,6 +40,7 @@
       type="datetime-local"
       name="timestamp"
       id="timestamp"
+      value="{{ timestamp.split(':')[:-1] | join(':') }}"
       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
     />
   </div>
