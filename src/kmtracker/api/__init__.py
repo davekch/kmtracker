@@ -1,8 +1,10 @@
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request, Depends, Form
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 import os
 from datetime import timedelta, datetime
+from pydantic import BaseModel, Field
+from typing import Annotated
 
 from kmtracker import get_config, get_database
 from kmtracker.db import Database, Ride, FloatField
@@ -20,6 +22,14 @@ def db_connection():
         yield db
     finally:
         db.close()
+
+
+class RideForm(BaseModel):
+    distance: float
+    timestamp: datetime = Field(default_factory=datetime.today)
+    duration: timedelta | None = None
+    comment: str = ""
+    segments: int = 1
 
 
 @app.get("/")
@@ -56,8 +66,45 @@ def rides(request: Request, db: Database=Depends(db_connection)):
                 "gpx",
             ],
             "rows": rides,
+            "table_id": "rides",
         }
     )
+
+
+@app.get("/rides/new")
+def rides_new_show_form(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="components/_form_ride.html",
+    )
+
+
+@app.post("/rides/new")
+def rides_new_submit_form(
+    request: Request,
+    form: Annotated[RideForm, Form()],
+    db: Database=Depends(db_connection),
+):
+    ride = Ride(db, **form.model_dump())
+    ride.save()
+    data = ride.serialize_pretty()
+    return templates.TemplateResponse(
+        request=request,
+        name="components/_table_row.html",
+        context={
+            "row": data,
+            "keys": [
+                Ride.columns.pk.name,
+                Ride.columns.timestamp.name,
+                Ride.columns.distance.name,
+                Ride.columns.duration.name,
+                "speed",
+                Ride.columns.comment.name,
+                Ride.columns.segments.name,
+                "gpx",]
+        }
+    )
+
 
 
 @app.get("/stats")
