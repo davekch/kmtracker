@@ -1,4 +1,4 @@
-<h2 class="text-lg font-bold">Streaks</h2>
+<h2 class="text-lg font-bold mb-1">🏅 Streaks</h2>
 {% if on_streak %}
 🚴<b class="text-green-600">You're on a streak!</b> {{ current_streak }} days in a row.
 {% elif keep_up %}
@@ -8,7 +8,7 @@ You're currently not on a streak.
 {% endif %}
 
 
-<h2 class="text-lg font-bold">Stats</h2>
+<h2 class="text-lg font-bold mt-2 mb-1">📊 Stats</h2>
 <div class="grid grid-cols-2">
     <div>Total distance:</div> <div><b>{{ distance_tot }} km</b> ({{ n_rides }} rides)</div>
     <div>Longest ride:</div> <div>{{ distance_max }} km (on {{ distance_max_date }})</div>
