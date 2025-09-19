@@ -53,10 +53,10 @@ def print_rides(rows: list[Ride]):
             pretty["timestamp"],
             pretty["distance"],
             pretty["duration"],
-            db.FloatField.serialize_pretty(row.speed),
+            pretty["speed"],
             pretty["comment"],
             pretty["segments"],
-            "✅" if row.gpx else "-",
+            pretty["gpx"],
         )
     console.print(table)
 

@@ -30,12 +30,7 @@ def index(request: Request):
 @app.get("/rides")
 def rides(request: Request, db: Database=Depends(db_connection)):
     rides_objs = Ride.get_latest_entries(db, -1)
-    rides = []
-    for ride in rides_objs:
-        data = ride.serialize_pretty()
-        data["speed"] = FloatField.serialize_pretty(ride.speed)
-        data["gpx"] = "✅" if ride.gpx else "-"
-        rides.append(data)
+    rides = [r.serialize_pretty() for r in rides_objs]
     return templates.TemplateResponse(
         request=request,
         name="components/_table.html",

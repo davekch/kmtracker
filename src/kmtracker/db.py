@@ -185,10 +185,13 @@ class Model:
         }
 
     def serialize_pretty(self) -> dict:
-        return {
+        data = {
             column.name: column.field.serialize_pretty(getattr(self, column.name))
             for column in self.columns
         }
+        data["speed"] = FloatField.serialize_pretty(self.speed)
+        data["gpx"] = "✅" if self.gpx else "-"
+        return data
 
     def save(self):
         """
