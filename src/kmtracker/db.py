@@ -187,8 +187,6 @@ class Model:
             column.name: column.field.serialize_pretty(getattr(self, column.name))
             for column in self.columns
         }
-        data["speed"] = FloatField.serialize_pretty(self.speed)
-        data["gpx"] = "✅" if self.gpx else "-"
         return data
 
     def save(self):
@@ -280,6 +278,12 @@ class Ride(Model):
     def speed(self) -> int:
         if self.distance and self.duration:
             return self.distance / self.duration.total_seconds() * 3600
+
+    def serialize_pretty(self):
+        return super().serialize_pretty() | {
+            "speed": FloatField.serialize_pretty(self.speed),
+            "gpx": "✅" if self.gpx else "-"
+        }
 
     @classmethod
     def get_latest_entries(cls, db: Database, n: int) -> list[Self]:
