@@ -73,6 +73,8 @@
     <button
       type="submit"
       class="rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+      id="btn-new-ride"
+      hx-on="htmx:afterRequest: htmx.trigger('#stats','refresh')"
     >
       Add ride
     </button>
