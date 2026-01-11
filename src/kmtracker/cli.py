@@ -9,6 +9,7 @@ from pathlib import Path
 
 from kmtracker.db import Database, Ride, Alias
 from kmtracker import pretty
+from kmtracker import plot
 from kmtracker import (
     get_config,
     get_db_path,
@@ -95,6 +96,10 @@ def cli_stats(db: Database, args: argparse.Namespace):
     pretty.print_summary(summary)
 
 
+def cli_plot(db: Database, args: argparse.Namespace):
+    plot.show_plot(db)
+
+
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--config", help="path to config file", type=Path)
@@ -145,6 +150,9 @@ def get_args() -> argparse.Namespace:
 
     stats = subparsers.add_parser("stats")
     stats.set_defaults(func=cli_stats)
+
+    plot = subparsers.add_parser("plot")
+    plot.set_defaults(func=cli_plot)
 
     args = parser.parse_args()
     return args

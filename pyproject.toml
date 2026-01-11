@@ -1,6 +1,6 @@
 [project]
 name = "kmtracker"
-version = "0.3.0"
+version = "0.4.0"
 description = "dead simple cli tool to track bike rides"
 authors = [
     { name = "davekch", email = "dvkch@proton.me" }
@@ -8,6 +8,7 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "dayplot>=0.4.2",
     "gpxpy>=1.6.2",
     "python-dateutil>=2.9.0.post0",
     "rich>=13.9.4",
