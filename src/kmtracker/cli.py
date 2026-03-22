@@ -50,7 +50,7 @@ def cli_amend(database: Database, args: argparse.Namespace):
         ride = Ride.get_last_row(database)
     else:
         pretty.console.print(f"Changed entry with ID {args.id}:")
-        ride = Ride.get_row(args.id)
+        ride = Ride.get_row(database, args.id)
     for field, value in parsed_args.items():
         setattr(ride, field, value)
     ride.save()
