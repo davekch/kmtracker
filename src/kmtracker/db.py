@@ -8,7 +8,7 @@ from enum import Enum
 import gpxpy
 import glob
 import importlib
-from typing import Self
+from typing import Self, Any
 
 
 class Database:
@@ -61,9 +61,10 @@ class Database:
 
 
 class Field:
-    def __init__(self, column_name: str, display_name: str=None):
+    def __init__(self, column_name: str, display_name: str=None, default: Any=None):
         self.name = column_name
         self.display_name = display_name or column_name
+        self.default = default
 
     @staticmethod
     def parse(value):
@@ -163,7 +164,7 @@ class Model:
             setattr(
                 self,
                 column.name,
-                kwargs.pop(column.name, None),
+                kwargs.pop(column.name, column.field.default),
             )
         if kwargs:
             raise TypeError(f"{kwargs.keys()} are invalid keyword arguments for {self.__class__.__name__}")
@@ -267,7 +268,7 @@ class Ride(Model):
         timestamp = DatetimeField("timestamp", display_name="Date")
         duration = TimedeltaField("duration_s", display_name="Duration (hh:mm:ss)")
         comment = Field("comment", display_name="Comment")
-        segments = Field("segments", display_name="Segments")
+        segments = Field("segments", display_name="Segments", default=1)
         gpx = Field("gpx", display_name="GPX")
 
     @property
@@ -441,14 +442,14 @@ class Alias(Model):
     represents a table of default values for rides
     """
     table = "aliases"
-    
+
     class columns(ColumnEnum):
         pk = Field("id", display_name="ID")
         name = Field("name", display_name="Name")
         distance = FloatField("distance_km", display_name="Distance (km)")
         duration = TimedeltaField("duration_s", display_name="Duration (hh:mm:ss)")
         comment = Field("comment", display_name="Comment")
-        segments = Field("segments", display_name="Segments")
+        segments = Field("segments", display_name="Segments", default=1)
 
     @classmethod
     def get_all(cls, db: Database) -> list[Self]:

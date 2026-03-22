@@ -110,7 +110,7 @@ def get_args() -> argparse.Namespace:
     add.add_argument("-t", "--timestamp", help="datetime of the ride")
     add.add_argument("-d", "--duration", help="duration of the ride")
     add.add_argument("-c", "--comment")
-    add.add_argument("-s", "--segments", help="split this ride into n segments", type=int, default=1)
+    add.add_argument("-s", "--segments", help="split this ride into n segments", type=int)
     add.add_argument("-g", "--gpx", help="add gpx file")
     add.set_defaults(func=cli_add)
 
